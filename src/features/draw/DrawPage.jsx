@@ -9,57 +9,83 @@ const RENKLER = [
 ];
 const KALINLIKLAR = [2, 5, 10, 18];
 
+// Noktaları 0-1 arası oran olarak saklıyoruz: telefonda çizilen şey
+// bilgisayarda da aynı yere denk gelsin.
+const TUVAL_ORAN = 0.78;   // yükseklik / genişlik
+
 export default function DrawPage() {
   const { user } = useAuth();
   const { coupleId, partnerAktif, partner } = useCouple();
 
-  const canvasRef = useRef(null);
-  const kanalRef  = useRef(null);
-  const cizgiRef  = useRef(null);     // o an çizilen çizgi
-  const cizimlerRef = useRef([]);     // tüm çizgiler (benim + partnerin)
+  const canvasRef   = useRef(null);
+  const sarmalRef   = useRef(null);
+  const kanalRef    = useRef(null);
 
-  const [renk, setRenk]       = useState(RENKLER[0]);
-  const [kalinlik, setKalinlik] = useState(5);
-  const [geriYigin, setGeriYigin] = useState([]);  // geri alınanlar (yalnız benimkiler)
-  const [adet, setAdet]       = useState(0);       // yeniden çizim tetikleyici
+  const cizgilerRef = useRef([]);      // kaydedilmiş çizgiler [{id, sahip, data}]
+  const aktifRef    = useRef(null);    // benim o an çizdiğim
+  const partnerRef  = useRef(null);    // partnerin o an çizdiği (canlı, geçici)
+  const sonYayinRef = useRef(0);
+
+  const [renk, setRenk]           = useState(RENKLER[0]);
+  const [kalinlik, setKalinlik]   = useState(5);
+  const [geriYigin, setGeriYigin] = useState([]);
+  const [sayac, setSayac]         = useState(0);   // yeniden çizim tetikleyici
+  const [yukleniyor, setYukleniyor] = useState(true);
+  const [hata, setHata]           = useState(null);
   const [kaydedildi, setKaydedildi] = useState(false);
 
-  /* ---------------- tuvali ölçekle ---------------- */
-  const olcekle = useCallback(() => {
+  const tazele = () => setSayac((s) => s + 1);
+
+  /* ================= çizim motoru ================= */
+
+  function cizgiCiz(ctx, cizgi, g, y) {
+    const n = cizgi?.noktalar;
+    if (!n || n.length < 2) return;
+    ctx.strokeStyle = cizgi.renk;
+    ctx.lineWidth = cizgi.kalinlik;
+    ctx.beginPath();
+    ctx.moveTo(n[0].x * g, n[0].y * y);
+    for (const p of n.slice(1)) ctx.lineTo(p.x * g, p.y * y);
+    ctx.stroke();
+  }
+
+  const ciz = useCallback(() => {
     const c = canvasRef.current;
     if (!c) return;
-    const oran = window.devicePixelRatio || 1;
-    const kutu = c.getBoundingClientRect();
-    c.width  = kutu.width  * oran;
-    c.height = kutu.height * oran;
     const ctx = c.getContext('2d');
-    ctx.scale(oran, oran);
+    const kutu = c.getBoundingClientRect();
+    const g = kutu.width, y = kutu.height;
+
+    ctx.clearRect(0, 0, g, y);
+    for (const s of cizgilerRef.current) cizgiCiz(ctx, s.data, g, y);
+    cizgiCiz(ctx, partnerRef.current, g, y);
+    cizgiCiz(ctx, aktifRef.current, g, y);
+  }, []);
+
+  useEffect(() => { ciz(); }, [sayac, ciz]);
+
+  /* ================= ölçekleme ================= */
+
+  const olcekle = useCallback(() => {
+    const c = canvasRef.current;
+    const sarmal = sarmalRef.current;
+    if (!c || !sarmal) return;
+
+    const genislik  = sarmal.clientWidth;
+    const yukseklik = Math.round(genislik * TUVAL_ORAN);
+    const dpr = window.devicePixelRatio || 1;
+
+    c.style.width  = genislik + 'px';
+    c.style.height = yukseklik + 'px';
+    c.width  = genislik * dpr;
+    c.height = yukseklik * dpr;
+
+    const ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ciz();
-  }, []);
-
-  /* ---------------- tüm çizgileri yeniden çiz ---------------- */
-  function ciz() {
-    const c = canvasRef.current;
-    if (!c) return;
-    const ctx = c.getContext('2d');
-    const oran = window.devicePixelRatio || 1;
-
-    ctx.clearRect(0, 0, c.width / oran, c.height / oran);
-
-    for (const cizgi of cizimlerRef.current) {
-      if (cizgi.noktalar.length < 2) continue;
-      ctx.strokeStyle = cizgi.renk;
-      ctx.lineWidth = cizgi.kalinlik;
-      ctx.beginPath();
-      ctx.moveTo(cizgi.noktalar[0].x, cizgi.noktalar[0].y);
-      for (const n of cizgi.noktalar.slice(1)) ctx.lineTo(n.x, n.y);
-      ctx.stroke();
-    }
-  }
-
-  useEffect(() => { ciz(); }, [adet]);
+  }, [ciz]);
 
   useEffect(() => {
     olcekle();
@@ -67,31 +93,68 @@ export default function DrawPage() {
     return () => window.removeEventListener('resize', olcekle);
   }, [olcekle]);
 
-  /* ---------------- realtime ---------------- */
+  /* ================= kayıtlı çizgileri yükle ================= */
+
   useEffect(() => {
     if (!coupleId) return;
+    let iptal = false;
+
+    supabase
+      .from('strokes')
+      .select('id, author_id, data')
+      .eq('couple_id', coupleId)
+      .order('created_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (iptal) return;
+        if (error) {
+          setHata('Tuval yüklenemedi. Sayfayı yenile.');
+        } else {
+          cizgilerRef.current = (data ?? []).map((s) => ({
+            id: s.id, sahip: s.author_id, data: s.data,
+          }));
+          tazele();
+        }
+        setYukleniyor(false);
+      });
+
+    return () => { iptal = true; };
+  }, [coupleId]);
+
+  /* ================= realtime ================= */
+
+  useEffect(() => {
+    if (!coupleId || !user) return;
 
     const kanal = supabase
-      .channel(`cizim:${coupleId}`)
-      .on('broadcast', { event: 'cizgi' }, ({ payload }) => {
+      .channel(`tuval:${coupleId}`)
+
+      // partnerin eli hareket ederken — veritabanına yazmadan, sadece görüntü
+      .on('broadcast', { event: 'akis' }, ({ payload }) => {
         if (payload.kim === user.id) return;
-        cizimlerRef.current.push(payload.cizgi);
-        setAdet((a) => a + 1);
+        partnerRef.current = payload.cizgi;
+        tazele();
       })
-      .on('broadcast', { event: 'temizle' }, ({ payload }) => {
+      .on('broadcast', { event: 'akis-bitti' }, ({ payload }) => {
         if (payload.kim === user.id) return;
-        cizimlerRef.current = [];
-        setGeriYigin([]);
-        setAdet((a) => a + 1);
+        partnerRef.current = null;
+        tazele();
       })
-      .on('broadcast', { event: 'geri' }, ({ payload }) => {
-        if (payload.kim === user.id) return;
-        const i = cizimlerRef.current.map((c) => c.id).lastIndexOf(payload.cizgiId);
-        if (i >= 0) {
-          cizimlerRef.current.splice(i, 1);
-          setAdet((a) => a + 1);
-        }
-      })
+
+      // kalıcı kayıtlar
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'strokes', filter: `couple_id=eq.${coupleId}` },
+        ({ new: yeni }) => {
+          if (cizgilerRef.current.some((s) => s.id === yeni.id)) return;
+          cizgilerRef.current.push({ id: yeni.id, sahip: yeni.author_id, data: yeni.data });
+          if (yeni.author_id !== user.id) partnerRef.current = null;
+          tazele();
+        })
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'strokes', filter: `couple_id=eq.${coupleId}` },
+        ({ old }) => {
+          cizgilerRef.current = cizgilerRef.current.filter((s) => s.id !== old.id);
+          tazele();
+        })
       .subscribe();
 
     kanalRef.current = kanal;
@@ -99,103 +162,133 @@ export default function DrawPage() {
   }, [coupleId, user]);
 
   function yayinla(event, payload) {
-    kanalRef.current?.send({ type: 'broadcast', event, payload: { kim: user.id, ...payload } });
+    kanalRef.current?.send({
+      type: 'broadcast', event, payload: { kim: user.id, ...payload },
+    });
   }
 
-  /* ---------------- çizim olayları ---------------- */
+  /* ================= giriş olayları ================= */
+
   function konum(e) {
-    const kutu = canvasRef.current.getBoundingClientRect();
+    const k = canvasRef.current.getBoundingClientRect();
     const p = e.touches?.[0] ?? e;
-    return { x: p.clientX - kutu.left, y: p.clientY - kutu.top };
+    return {
+      x: (p.clientX - k.left) / k.width,
+      y: (p.clientY - k.top) / k.height,
+    };
   }
 
   function basla(e) {
     e.preventDefault();
     setKaydedildi(false);
-    cizgiRef.current = {
-      id: crypto.randomUUID(),
-      renk, kalinlik,
-      noktalar: [konum(e)],
-    };
+    aktifRef.current = { renk, kalinlik, noktalar: [konum(e)] };
   }
 
   function surukle(e) {
-    if (!cizgiRef.current) return;
+    if (!aktifRef.current) return;
     e.preventDefault();
-    cizgiRef.current.noktalar.push(konum(e));
+    aktifRef.current.noktalar.push(konum(e));
+    tazele();
 
-    // anlık geri bildirim: sadece son parçayı çiz
-    const ctx = canvasRef.current.getContext('2d');
-    const n = cizgiRef.current.noktalar;
-    if (n.length >= 2) {
-      ctx.strokeStyle = cizgiRef.current.renk;
-      ctx.lineWidth = cizgiRef.current.kalinlik;
-      ctx.beginPath();
-      ctx.moveTo(n[n.length - 2].x, n[n.length - 2].y);
-      ctx.lineTo(n[n.length - 1].x, n[n.length - 1].y);
-      ctx.stroke();
+    // canlı akış — saniyede ~20 kez, ağı boğmadan
+    const simdi = Date.now();
+    if (simdi - sonYayinRef.current > 50) {
+      sonYayinRef.current = simdi;
+      yayinla('akis', { cizgi: aktifRef.current });
     }
   }
 
-  function bitir() {
-    const cizgi = cizgiRef.current;
-    cizgiRef.current = null;
-    if (!cizgi || cizgi.noktalar.length < 2) return;
+  async function bitir() {
+    const cizgi = aktifRef.current;
+    aktifRef.current = null;
+    if (!cizgi || cizgi.noktalar.length < 2) { tazele(); return; }
 
-    cizgi.sahip = user.id;
-    cizimlerRef.current.push(cizgi);
-    setGeriYigin([]);            // yeni çizgi -> ileri alma geçmişi sıfırlanır
-    setAdet((a) => a + 1);
-    yayinla('cizgi', { cizgi });
+    yayinla('akis-bitti', {});
+
+    // önce ekranda göster, sonra kaydet (akıcı hissettirir)
+    const gecici = { id: 'gecici-' + crypto.randomUUID(), sahip: user.id, data: cizgi };
+    cizgilerRef.current.push(gecici);
+    setGeriYigin([]);
+    tazele();
+
+    const { data, error } = await supabase
+      .from('strokes')
+      .insert({ couple_id: coupleId, author_id: user.id, data: cizgi })
+      .select('id')
+      .single();
+
+    if (error) {
+      // kaydedilemediyse ekrandan da kaldır — yanlış izlenim vermesin
+      cizgilerRef.current = cizgilerRef.current.filter((s) => s.id !== gecici.id);
+      setHata('Çizgi kaydedilemedi. Bağlantını kontrol et.');
+      tazele();
+      return;
+    }
+
+    gecici.id = data.id;   // geçici id'yi gerçeğiyle değiştir
   }
 
-  /* ---------------- araçlar ---------------- */
-  function geriAl() {
-    // yalnızca kendi çizgilerimi geri al
-    const i = cizimlerRef.current.map((c) => c.sahip).lastIndexOf(user.id);
+  /* ================= araçlar ================= */
+
+  async function geriAl() {
+    const i = cizgilerRef.current.map((s) => s.sahip).lastIndexOf(user.id);
     if (i < 0) return;
-    const [cikan] = cizimlerRef.current.splice(i, 1);
+
+    const [cikan] = cizgilerRef.current.splice(i, 1);
     setGeriYigin((y) => [...y, cikan]);
-    setAdet((a) => a + 1);
-    yayinla('geri', { cizgiId: cikan.id });
+    tazele();
+
+    await supabase.from('strokes').delete().eq('id', cikan.id);
   }
 
-  function ileriAl() {
+  async function ileriAl() {
     if (geriYigin.length === 0) return;
     const geri = geriYigin[geriYigin.length - 1];
     setGeriYigin((y) => y.slice(0, -1));
-    cizimlerRef.current.push(geri);
-    setAdet((a) => a + 1);
-    yayinla('cizgi', { cizgi: geri });
+
+    const { data, error } = await supabase
+      .from('strokes')
+      .insert({ couple_id: coupleId, author_id: user.id, data: geri.data })
+      .select('id')
+      .single();
+
+    if (error) { setHata('Geri getirilemedi.'); return; }
+
+    cizgilerRef.current.push({ id: data.id, sahip: user.id, data: geri.data });
+    tazele();
   }
 
-  function temizle() {
-    cizimlerRef.current = [];
+  async function temizle() {
+    if (cizgilerRef.current.length === 0) return;
+    if (!window.confirm('Tuvaldeki her şey silinecek. Devam edilsin mi?')) return;
+
+    cizgilerRef.current = [];
     setGeriYigin([]);
-    setAdet((a) => a + 1);
-    yayinla('temizle', {});
+    tazele();
+
+    await supabase.from('strokes').delete().eq('couple_id', coupleId);
   }
 
   function kaydet() {
     const c = canvasRef.current;
-    const gecici = document.createElement('canvas');
-    gecici.width = c.width;
-    gecici.height = c.height;
-    const ctx = gecici.getContext('2d');
+    const g = document.createElement('canvas');
+    g.width = c.width; g.height = c.height;
+    const ctx = g.getContext('2d');
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, gecici.width, gecici.height);
+    ctx.fillRect(0, 0, g.width, g.height);
     ctx.drawImage(c, 0, 0);
 
     const a = document.createElement('a');
-    a.download = `cizim-${new Date().toISOString().slice(0, 10)}.png`;
-    a.href = gecici.toDataURL('image/png');
+    a.download = `tuval-${new Date().toISOString().slice(0, 10)}.png`;
+    a.href = g.toDataURL('image/png');
     a.click();
 
     setKaydedildi(true);
     setTimeout(() => setKaydedildi(false), 2200);
   }
 
-  const benimVar = cizimlerRef.current.some((c) => c.sahip === user.id);
+  const benimVar = cizgilerRef.current.some((s) => s.sahip === user.id);
+  const bosDegil = cizgilerRef.current.length > 0;
 
   return (
     <>
@@ -211,30 +304,28 @@ export default function DrawPage() {
         </span>
       </header>
 
-      {/* ---------- Araç çubuğu ---------- */}
+      {/* araç çubuğu */}
       <div
         className="card"
-        style={{
-          padding: 'var(--s2)', marginBottom: 'var(--s3)',
-          display: 'flex', gap: 'var(--s1)', justifyContent: 'space-between',
-        }}
+        style={{ padding: 'var(--s2)', marginBottom: 'var(--s3)', display: 'flex', gap: 'var(--s1)' }}
       >
-        <ToolButton onClick={geriAl} disabled={!benimVar} etiket="Geri al"><IconUndo /></ToolButton>
-        <ToolButton onClick={ileriAl} disabled={geriYigin.length === 0} etiket="İleri al"><IconRedo /></ToolButton>
-        <ToolButton onClick={temizle} disabled={cizimlerRef.current.length === 0} etiket="Tuvali temizle"><IconTrash /></ToolButton>
-        <ToolButton onClick={kaydet} disabled={cizimlerRef.current.length === 0} etiket="Görsel olarak kaydet" vurgu>
-          {kaydedildi ? <IconCheck /> : <span style={{ fontSize: 13, fontWeight: 700 }}>Kaydet</span>}
-        </ToolButton>
+        <Arac onClick={geriAl}  disabled={!benimVar}             etiket="Geri al"><IconUndo /></Arac>
+        <Arac onClick={ileriAl} disabled={geriYigin.length === 0} etiket="İleri al"><IconRedo /></Arac>
+        <Arac onClick={temizle} disabled={!bosDegil}              etiket="Tuvali temizle"><IconTrash /></Arac>
+        <Arac onClick={kaydet}  disabled={!bosDegil} vurgu        etiket="Görsel olarak indir">
+          {kaydedildi ? <IconCheck /> : <span style={{ fontSize: 13, fontWeight: 700 }}>İndir</span>}
+        </Arac>
       </div>
 
-      {/* ---------- Tuval ---------- */}
+      {/* tuval */}
       <div
+        ref={sarmalRef}
         className="card"
-        style={{ padding: 0, overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}
+        style={{ padding: 0, overflow: 'hidden', boxShadow: 'var(--shadow-md)', position: 'relative' }}
       >
         <canvas
           ref={canvasRef}
-          style={{ width: '100%', height: 380, display: 'block', touchAction: 'none', cursor: 'crosshair' }}
+          style={{ display: 'block', touchAction: 'none', cursor: 'crosshair' }}
           onMouseDown={basla}
           onMouseMove={surukle}
           onMouseUp={bitir}
@@ -243,9 +334,31 @@ export default function DrawPage() {
           onTouchMove={surukle}
           onTouchEnd={bitir}
         />
+
+        {yukleniyor && (
+          <div
+            style={{
+              position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+              background: 'var(--surface)', color: 'var(--text-faint)', fontSize: 13,
+            }}
+          >
+            Tuval yükleniyor…
+          </div>
+        )}
+
+        {!yukleniyor && !bosDegil && (
+          <div
+            style={{
+              position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+              pointerEvents: 'none', color: 'var(--text-faint)', fontSize: 13,
+            }}
+          >
+            Buraya çizmeye başla
+          </div>
+        )}
       </div>
 
-      {/* ---------- Renk ve kalınlık ---------- */}
+      {/* renk + kalınlık */}
       <div className="card" style={{ marginTop: 'var(--s3)', padding: 'var(--s4)' }}>
         <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
           {RENKLER.map((r) => (
@@ -254,13 +367,12 @@ export default function DrawPage() {
               onClick={() => setRenk(r)}
               aria-label={`Renk ${r}`}
               style={{
-                width: 30, height: 30, borderRadius: '50%',
-                background: r, cursor: 'pointer',
+                width: 30, height: 30, borderRadius: '50%', background: r, cursor: 'pointer',
                 border: r === renk ? '2px solid var(--text)' : '2px solid transparent',
                 outline: r === renk ? '2px solid var(--surface)' : 'none',
                 outlineOffset: -4,
-                transition: 'transform 0.18s var(--ease)',
                 transform: r === renk ? 'scale(1.12)' : 'none',
+                transition: 'transform 0.18s var(--ease)',
               }}
             />
           ))}
@@ -273,8 +385,7 @@ export default function DrawPage() {
               onClick={() => setKalinlik(k)}
               aria-label={`Fırça ${k}`}
               style={{
-                flex: 1, height: 40, borderRadius: 'var(--r-sm)', cursor: 'pointer',
-                border: 'none',
+                flex: 1, height: 40, borderRadius: 'var(--r-sm)', cursor: 'pointer', border: 'none',
                 background: k === kalinlik ? 'var(--surface-soft)' : 'transparent',
                 display: 'grid', placeItems: 'center',
                 transition: 'background 0.2s var(--ease)',
@@ -286,21 +397,28 @@ export default function DrawPage() {
         </div>
       </div>
 
+      {hata && (
+        <p style={{ color: 'var(--primary)', fontSize: 13, fontWeight: 600, marginTop: 'var(--s3)', textAlign: 'center' }}>
+          {hata}
+        </p>
+      )}
+
       <p className="faint" style={{ marginTop: 'var(--s3)', textAlign: 'center' }}>
         {partnerAktif
           ? `${partner?.display_name || 'Partnerin'} de aynı tuvalde.`
-          : 'Çizdiklerin sayfa kapanınca kaybolur. Saklamak için kaydet.'}
+          : 'Tuval saklanıyor. İstediğin zaman geri dön.'}
       </p>
     </>
   );
 }
 
-function ToolButton({ children, etiket, vurgu, ...p }) {
+function Arac({ children, etiket, vurgu, ...p }) {
   return (
     <button
       {...p}
       aria-label={etiket}
       title={etiket}
+      onMouseDown={(e) => e.preventDefault()}
       style={{
         flex: 1, height: 42, border: 'none', borderRadius: 'var(--r-sm)',
         background: vurgu ? 'var(--surface-soft)' : 'transparent',
@@ -308,9 +426,8 @@ function ToolButton({ children, etiket, vurgu, ...p }) {
         display: 'grid', placeItems: 'center',
         cursor: p.disabled ? 'default' : 'pointer',
         opacity: p.disabled ? 0.35 : 1,
-        transition: 'background 0.2s var(--ease), transform 0.15s var(--ease)',
+        transition: 'background 0.2s var(--ease)',
       }}
-      onMouseDown={(e) => e.preventDefault()}
     >
       {children}
     </button>
