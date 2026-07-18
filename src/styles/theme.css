@@ -1,0 +1,342 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+/* =====================================================================
+   TASARIM TOKENLARI
+   ===================================================================== */
+:root {
+  /* Renk */
+  --primary:      #D24558;
+  --primary-dark: #B33648;
+  --soft-pink:    #FDA6AB;
+  --accent:       #FAC977;
+  --mint:         #C6E9C8;
+  --green:        #61A07D;
+  --brown:        #5D300E;
+
+  --bg:           #FFF9FA;
+  --surface:      #FFFFFF;
+  --surface-soft: #FFF3F4;
+
+  --text:         #23181A;
+  --text-muted:   #7A6B6E;
+  --text-faint:   #A99A9D;
+  --hairline:     rgba(93, 48, 14, 0.08);
+
+  /* Spacing — 8px sistemi */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 24px; --s6: 32px; --s7: 40px; --s8: 56px;
+
+  /* Yuvarlaklık */
+  --r-sm: 12px; --r-md: 16px; --r-lg: 20px; --r-xl: 24px; --r-full: 999px;
+
+  /* Gölge — ince ve yumuşak */
+  --shadow-sm: 0 1px 2px rgba(93, 48, 14, 0.04),
+               0 2px 8px rgba(93, 48, 14, 0.04);
+  --shadow-md: 0 2px 4px rgba(93, 48, 14, 0.04),
+               0 8px 24px rgba(93, 48, 14, 0.06);
+  --shadow-lg: 0 4px 8px rgba(93, 48, 14, 0.05),
+               0 16px 40px rgba(93, 48, 14, 0.09);
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* =====================================================================
+   TEMEL
+   ===================================================================== */
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+h1 { font-size: 28px; }
+h2 { font-size: 22px; }
+h3 { font-size: 17px; font-weight: 700; }
+
+p { margin: 0; }
+
+button { font-family: inherit; }
+
+input, textarea {
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: 14px var(--s4);
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+input::placeholder, textarea::placeholder { color: var(--text-faint); }
+
+input:focus, textarea:focus {
+  border-color: var(--soft-pink);
+  box-shadow: 0 0 0 4px rgba(253, 166, 171, 0.22);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* =====================================================================
+   YARDIMCI TİPOGRAFİ
+   ===================================================================== */
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.muted { color: var(--text-muted); }
+.faint { color: var(--text-faint); font-size: 13px; }
+
+/* =====================================================================
+   DÜZEN
+   ===================================================================== */
+.shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100%;
+  padding: var(--s5) var(--s4) 104px;
+  position: relative;
+}
+
+.shell--wide { max-width: 560px; }
+
+.page {
+  animation: rise 0.45s var(--ease) both;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.stack   { display: flex; flex-direction: column; gap: var(--s4); }
+.stack-2 { display: flex; flex-direction: column; gap: var(--s2); }
+.row     { display: flex; align-items: center; gap: var(--s3); }
+.spacer  { flex: 1; }
+
+/* =====================================================================
+   KART
+   ===================================================================== */
+.card {
+  background: var(--surface);
+  border-radius: var(--r-xl);
+  padding: var(--s5);
+  box-shadow: var(--shadow-sm);
+}
+
+.card--flat { box-shadow: none; background: var(--surface-soft); }
+
+.card-tap {
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+
+.card-tap:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.card-tap:active { transform: scale(0.98); }
+
+/* =====================================================================
+   BUTONLAR
+   ===================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  border: none;
+  border-radius: var(--r-full);
+  padding: 14px var(--s5);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s var(--ease), background 0.2s var(--ease),
+              box-shadow 0.2s var(--ease), opacity 0.2s var(--ease);
+}
+
+.btn:active { transform: scale(0.96); }
+.btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+.btn--primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(210, 69, 88, 0.28);
+}
+.btn--primary:hover:not(:disabled) { background: var(--primary-dark); }
+
+.btn--soft {
+  background: var(--surface-soft);
+  color: var(--primary);
+}
+.btn--soft:hover:not(:disabled) { background: rgba(253, 166, 171, 0.3); }
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-muted);
+  padding: 10px var(--s3);
+  font-weight: 600;
+}
+.btn--ghost:hover:not(:disabled) { color: var(--text); }
+
+.btn--block { width: 100%; }
+.btn--sm { padding: 9px var(--s4); font-size: 13px; }
+
+/* =====================================================================
+   ROZET / DURUM
+   ===================================================================== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--r-full);
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge--live  { background: rgba(198, 233, 200, 0.55); color: var(--green); }
+.badge--away  { background: var(--surface-soft); color: var(--text-faint); }
+.badge--gold  { background: rgba(250, 201, 119, 0.28); color: #8A5F14; }
+
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+/* =====================================================================
+   ALT GEZİNME
+   ===================================================================== */
+.tabbar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--s4) max(var(--s4), env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.tabbar-inner {
+  pointer-events: auto;
+  display: flex;
+  width: 100%;
+  max-width: 448px;
+  gap: var(--s1);
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(20px);
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow-lg);
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 9px 4px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-full);
+  color: var(--text-faint);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.tab svg { width: 21px; height: 21px; }
+.tab:active { transform: scale(0.94); }
+.tab.is-active { color: var(--primary); background: var(--surface-soft); }
+
+/* =====================================================================
+   FAB
+   ===================================================================== */
+.fab {
+  position: fixed;
+  right: max(var(--s4), calc(50vw - 224px));
+  bottom: 104px;
+  z-index: 45;
+  width: 56px; height: 56px;
+  border: none;
+  border-radius: var(--r-full);
+  background: var(--primary);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(210, 69, 88, 0.36);
+  transition: transform 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.fab:hover { background: var(--primary-dark); transform: translateY(-2px); }
+.fab:active { transform: scale(0.92); }
+
+/* =====================================================================
+   MODAL
+   ===================================================================== */
+.sheet-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(35, 24, 26, 0.28);
+  backdrop-filter: blur(3px);
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: fade 0.25s var(--ease) both;
+}
+
+@media (min-width: 560px) {
+  .sheet-backdrop { align-items: center; }
+}
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding: var(--s5) var(--s4) var(--s6);
+  box-shadow: var(--shadow-lg);
+  animation: slide-up 0.35s var(--ease) both;
+}
+
+@media (min-width: 560px) {
+  .sheet { border-radius: var(--r-xl); margin: var(--s4); }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+/* =====================================================================
+   HAREKET AZALTMA
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
