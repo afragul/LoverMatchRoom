@@ -23,14 +23,16 @@ const OYUNLAR = [
     alt: 'Biri çizer, diğeri bilir',
     isaret: '✎',
     ton: 'var(--mint)',
-    hazir: false,
+    hazir: true,
+    yol: '/oyunlar/cizbil',
   },
   {
     ad: 'Bunu Bilir misin',
     alt: 'Partnerin hakkında sorular',
     isaret: '?',
     ton: 'var(--surface-soft)',
-    hazir: false,
+    hazir: true,
+    yol: '/oyunlar/bilirmisin',
   },
 ];
 
@@ -89,13 +91,6 @@ export default function GamesPage() {
             )}
           </button>
         ))}
-      </div>
-
-      <div className="card card--flat" style={{ marginTop: 'var(--s5)' }}>
-        <h3>Diğerleri hazırlanıyor</h3>
-        <p className="muted" style={{ marginTop: 'var(--s2)' }}>
-          Tahta ve sıra bilgisi ikinizde anlık eşitlenecek.
-        </p>
       </div>
     </>
   );

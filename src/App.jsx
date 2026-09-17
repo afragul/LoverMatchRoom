@@ -11,6 +11,8 @@ import GamesPage from './features/games/GamesPage';
 import DrawPage from './features/draw/DrawPage';
 import XoxPage from './features/games/XoxPage';
 import DuelloPage from './features/games/DuelloPage';
+import CizBilPage from './features/games/CizBilPage';
+import BilirMisinPage from './features/games/BilirMisinPage';
 import RoomPage from './features/room/RoomPage';
 
 function Yukleniyor() {
@@ -65,6 +67,8 @@ export default function App() {
           <Route path="/oyunlar" element={<GamesPage />} />
           <Route path="/oyunlar/xox" element={<XoxPage />} />
           <Route path="/oyunlar/duello" element={<DuelloPage />} />
+          <Route path="/oyunlar/cizbil" element={<CizBilPage />} />
+          <Route path="/oyunlar/bilirmisin" element={<BilirMisinPage />} />
           <Route path="/anilar"  element={<AnilarPage />} />
           <Route path="/oda"     element={<RoomPage />} />
           <Route path="*"        element={<Navigate to="/" replace />} />

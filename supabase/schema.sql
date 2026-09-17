@@ -92,6 +92,41 @@ create table public.duello_games (
   updated_at timestamptz not null default now()
 );
 
+-- ÇİZ VE TAHMİN ET: gizli kelime kasıtlı olarak burada tutulmuyor.
+-- Kelimeyi sadece çizen tarafın tarayıcısı bilir; bu sütun round bitene
+-- (bulundu/vazgecildi) kadar NULL kalır, o an ifşa edilir. Çizim akışı ve
+-- tahminler kalıcı değil, sadece broadcast ile anlık gidiyor.
+create table public.cizbil_games (
+  couple_id  uuid primary key references public.couples(id) on delete cascade,
+  cizen_id   uuid not null references auth.users(id),
+  durum      text not null default 'ciziliyor',   -- 'ciziliyor' | 'bulundu' | 'vazgecildi'
+  kelime     text,
+  basladi    timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- BUNU BİLİR MİSİN: partnerin hakkında tahmin oyunu.
+-- bilirmisin_profil: sabit sorulara verilen gerçek cevaplar — kalıcı, zamanla birikir,
+-- ayni soru tekrar geldiğinde hedef yeniden cevaplamak zorunda kalmaz.
+create table public.bilirmisin_profil (
+  couple_id  uuid not null references public.couples(id) on delete cascade,
+  user_id    uuid not null references auth.users(id)     on delete cascade,
+  soru_id    text not null,
+  cevap      text not null,
+  updated_at timestamptz not null default now(),
+  primary key (couple_id, user_id, soru_id)
+);
+
+-- bilirmisin_tur: o an hangi soru soruluyor, hedef kim, tahmin ne — couple başına tek satır
+create table public.bilirmisin_tur (
+  couple_id      uuid primary key references public.couples(id) on delete cascade,
+  soru_id        text not null,
+  hedef_id       uuid not null references auth.users(id),
+  tahmin         text,
+  tahmin_eden_id uuid references auth.users(id),
+  updated_at     timestamptz not null default now()
+);
+
 
 -- ---------------------------------------------------------------------
 -- 2) YARDIMCI FONKSİYONLAR
@@ -320,6 +355,9 @@ alter table public.notes          enable row level security;
 alter table public.strokes        enable row level security;
 alter table public.xox_games      enable row level security;
 alter table public.duello_games   enable row level security;
+alter table public.cizbil_games   enable row level security;
+alter table public.bilirmisin_profil enable row level security;
+alter table public.bilirmisin_tur    enable row level security;
 
 -- PROFILES: kendi profilini + partnerinin profilini gör
 create policy "read own or partner profile"
@@ -406,6 +444,48 @@ create policy "update couple duello_games"
   on public.duello_games for update
   using (public.is_couple_member(couple_id));
 
+-- CIZBIL_GAMES: sadece kendi couple'ının turu
+-- (yeni tur = sırayı devralan taraf update atar, bu yüzden update de
+--  cizen_id değil, is_couple_member ile kontrol ediliyor — XOX ile aynı desen)
+create policy "read couple cizbil_games"
+  on public.cizbil_games for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple cizbil_games"
+  on public.cizbil_games for insert
+  with check (public.is_couple_member(couple_id) and cizen_id = auth.uid());
+
+create policy "update couple cizbil_games"
+  on public.cizbil_games for update
+  using (public.is_couple_member(couple_id));
+
+-- BILIRMISIN_PROFIL: herkes couple'ının cevaplarını okuyabilir,
+-- ama sadece kendi cevabını yazabilir (kimlik sabit, tur devretmiyor).
+create policy "read couple bilirmisin_profil"
+  on public.bilirmisin_profil for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert own bilirmisin_profil"
+  on public.bilirmisin_profil for insert
+  with check (public.is_couple_member(couple_id) and user_id = auth.uid());
+
+create policy "update own bilirmisin_profil"
+  on public.bilirmisin_profil for update
+  using (user_id = auth.uid());
+
+-- BILIRMISIN_TUR: sadece kendi couple'ının turu
+create policy "read couple bilirmisin_tur"
+  on public.bilirmisin_tur for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple bilirmisin_tur"
+  on public.bilirmisin_tur for insert
+  with check (public.is_couple_member(couple_id));
+
+create policy "update couple bilirmisin_tur"
+  on public.bilirmisin_tur for update
+  using (public.is_couple_member(couple_id));
+
 
 -- ---------------------------------------------------------------------
 -- 6) REALTIME (anlık senkron için)
@@ -414,3 +494,6 @@ alter publication supabase_realtime add table public.notes;
 alter publication supabase_realtime add table public.strokes;
 alter publication supabase_realtime add table public.xox_games;
 alter publication supabase_realtime add table public.duello_games;
+alter publication supabase_realtime add table public.cizbil_games;
+alter publication supabase_realtime add table public.bilirmisin_profil;
+alter publication supabase_realtime add table public.bilirmisin_tur;
