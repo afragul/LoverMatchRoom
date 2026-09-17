@@ -11,15 +11,13 @@ const OYUNLAR = [
   { ad: 'Bunu Bilir misin', alt: 'Partnerin hakkında sorular', ikon: 'quiz', ton: 'bg-surface-soft text-primary', yol: '/oyunlar/bilirmisin' },
 ];
 
-const OYUN_ADLARI = { xox: 'XOX', duello: 'Kelime Düellosu', cizbil: 'Çiz ve Tahmin Et' };
-
 export default function GamesPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { coupleId, partnerAktif, partner } = useCouple();
+  const { coupleId, partnerSayfa, partner } = useCouple();
+  const partnerBuradaMi = !!partnerSayfa?.startsWith('/oyunlar');
 
   const [sonuclar, setSonuclar] = useState([]);
-  const [yukleniyor, setYukleniyor] = useState(true);
 
   useEffect(() => {
     if (!coupleId) return;
@@ -33,7 +31,6 @@ export default function GamesPage() {
       .then(({ data }) => {
         if (iptal) return;
         setSonuclar(data ?? []);
-        setYukleniyor(false);
       });
 
     return () => { iptal = true; };
@@ -48,11 +45,11 @@ export default function GamesPage() {
       <header className="space-y-1">
         <p className="text-label-eyebrow text-primary uppercase tracking-widest">Oyunlar</p>
         <h1 className="text-headline-lg-mobile text-on-surface">Çift Oyunları Lobi 🎮</h1>
-        <p className="text-body-medium text-text-muted">
-          {partnerAktif
-            ? `${partner?.display_name || 'Partnerin'} şu an burada. İyi zamanlama.`
-            : 'Hepsi sıra tabanlı, aynı anda burada olmanız gerekmiyor.'}
-        </p>
+        {partnerBuradaMi && (
+          <p className="text-body-medium text-text-muted">
+            {partner?.display_name || 'Partnerin'} şu an burada. İyi zamanlama.
+          </p>
+        )}
       </header>
 
       {toplamMac > 0 && (
@@ -93,22 +90,6 @@ export default function GamesPage() {
           </button>
         ))}
       </div>
-
-      {!yukleniyor && sonuclar.length > 0 && (
-        <section className="bg-surface-card rounded-xl p-space-lg shadow-sm space-y-space-sm">
-          <h2 className="text-headline-sm text-on-surface">Son Oyun Sonuçları</h2>
-          <div className="space-y-space-xs">
-            {sonuclar.slice(0, 5).map((s) => (
-              <div key={s.id} className="flex items-center justify-between text-body-sm border-t border-hairline pt-space-xs first:border-0 first:pt-0">
-                <span className="text-on-surface">{OYUN_ADLARI[s.oyun] ?? s.oyun}</span>
-                <span className="text-text-muted">
-                  {s.kazanan_id ? (s.kazanan_id === user.id ? 'Sen kazandın' : `${partner?.display_name || 'Partnerin'} kazandı`) : 'Berabere'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </>
   );
 }

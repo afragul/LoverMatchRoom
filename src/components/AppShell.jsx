@@ -1,5 +1,7 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import { useCouple } from '../context/CoupleContext';
+import { Avatar } from './Bond';
 
 const SEKMELER = [
   { yol: '/', ikon: 'home', etiket: 'Ana Sayfa' },
@@ -12,27 +14,29 @@ const SEKMELER = [
 
 export default function AppShell({ children }) {
   const { pathname } = useLocation();
-  const { partner, partnerAktif, gunSayisi } = useCouple();
+  const { partner, partnerAktif, sayfaBildir, gunSayisi } = useCouple();
+
+  useEffect(() => { sayfaBildir(pathname); }, [pathname, sayfaBildir]);
 
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 pt-safe bg-surface/85 backdrop-blur-xl shadow-[0_1px_12px_rgba(93,48,14,0.04)]">
         <div className="h-16 px-space-lg flex items-center justify-between gap-space-sm">
           <div className="flex items-center gap-space-sm min-w-0 flex-shrink-0">
-            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-on-primary flex-shrink-0">
-              <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                favorite
-              </span>
+            <div className="relative w-7 h-7 rounded-lg bg-primary flex-shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" className="absolute top-0.5 right-0.5">
+                <path d="M12 20.2c-.25 0-.5-.08-.7-.24C7.6 17 3.5 13.3 3.5 9.3 3.5 6.6 5.6 4.5 8.2 4.5c1.6 0 3 .77 3.8 1.98.8-1.2 2.2-1.98 3.8-1.98 2.6 0 4.7 2.1 4.7 4.8 0 4-4.1 7.7-7.8 10.66-.2.16-.45.24-.7.24Z" />
+              </svg>
             </div>
-            <span className="text-headline-sm text-primary tracking-tight truncate">LoverMatchRoom</span>
+            <span className="text-headline-sm text-primary tracking-tight truncate">İkiz</span>
           </div>
 
-          <div className="flex items-center gap-space-xs overflow-x-auto no-scrollbar py-space-xs">
-            {partnerAktif && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-mint-soft/80 text-mint-vibrant flex-shrink-0">
-                <span className="w-2 h-2 rounded-full bg-mint-vibrant animate-pulse" />
-                <span className="text-label-eyebrow text-brown-earth whitespace-nowrap">
-                  {partner?.display_name || 'Partnerin'} çevrimiçi
+          <div className="flex items-center gap-space-sm overflow-x-auto no-scrollbar py-space-xs">
+            {partner && (
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <Avatar isim={partner.display_name} boyut={28} aktif={partnerAktif} fotoUrl={partner.avatar_url} />
+                <span className="text-label-eyebrow text-on-surface-variant whitespace-nowrap">
+                  {partner.display_name || 'Partnerin'} {partnerAktif ? 'çevrimiçi' : 'çevrimdışı'}
                 </span>
               </div>
             )}
@@ -44,14 +48,18 @@ export default function AppShell({ children }) {
             )}
           </div>
 
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+          <Link
+            to="/profil"
+            aria-label="Profil"
+            className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0"
+          >
             <span className="material-symbols-outlined text-on-primary text-[18px]">person</span>
-          </div>
+          </Link>
         </div>
       </header>
 
       <main className="flex-1 flex flex-col relative w-full pt-16 pb-28 bg-surface min-h-screen">
-        <div key={pathname} className="flex flex-col w-full px-space-md pt-space-md pb-space-2xl space-y-space-lg">
+        <div className="flex flex-col w-full px-space-md pt-space-md pb-space-2xl space-y-space-lg">
           {children}
         </div>
       </main>

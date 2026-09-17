@@ -29,6 +29,8 @@ create table public.profiles (
 -- Ortak oda: bir çift = bir couple
 create table public.couples (
   id         uuid primary key default gen_random_uuid(),
+  name       text,
+  started_at date,
   created_at timestamptz not null default now()
 );
 
@@ -407,6 +409,11 @@ create policy "read own couple"
   on public.couples for select
   using (public.is_couple_member(id));
 
+-- oda adı ve başlangıç tarihini couple üyeleri düzenleyebilsin
+create policy "update own couple"
+  on public.couples for update
+  using (public.is_couple_member(id));
+
 -- COUPLE_MEMBERS: üyesi olduğun couple'ın üyelerini gör
 create policy "read own couple members"
   on public.couple_members for select
@@ -553,6 +560,13 @@ create policy "delete own anilar"
 -- ---------------------------------------------------------------------
 -- 6) REALTIME (anlık senkron için)
 -- ---------------------------------------------------------------------
+
+-- DELETE olaylarında varsayılan olarak sadece primary key gönderilir —
+-- couple_id filtreli DELETE aboneliklerinin çalışması için tam satır gerekir.
+alter table public.notes  replica identity full;
+alter table public.strokes replica identity full;
+alter table public.anilar replica identity full;
+
 alter publication supabase_realtime add table public.notes;
 alter publication supabase_realtime add table public.strokes;
 alter publication supabase_realtime add table public.xox_games;
@@ -562,6 +576,7 @@ alter publication supabase_realtime add table public.bilirmisin_profil;
 alter publication supabase_realtime add table public.bilirmisin_tur;
 alter publication supabase_realtime add table public.oyun_sonuclari;
 alter publication supabase_realtime add table public.anilar;
+alter publication supabase_realtime add table public.couples;
 
 
 -- ---------------------------------------------------------------------
@@ -592,3 +607,24 @@ create policy "delete own couple anilar photos"
     bucket_id = 'anilar'
     and public.is_couple_member((storage.foldername(name))[1]::uuid)
   );
+
+-- Profil fotoğrafları: {user_id}/{dosya} yolunda, sadece sahibi yazabilir.
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+create policy "read avatars"
+  on storage.objects for select
+  using (bucket_id = 'avatars');
+
+create policy "upload own avatar"
+  on storage.objects for insert
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "update own avatar"
+  on storage.objects for update
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "delete own avatar"
+  on storage.objects for delete
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);

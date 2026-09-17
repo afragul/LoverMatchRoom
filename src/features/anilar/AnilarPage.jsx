@@ -3,6 +3,13 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCouple } from '../../context/CoupleContext';
 
+// Supabase Storage anahtarları Türkçe karakter/boşluk kabul etmiyor —
+// orijinal dosya adı yerine güvenli, üretilmiş bir ad kullan.
+function guvenliDosyaAdi(dosya) {
+  const uzanti = (dosya.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${uzanti}`;
+}
+
 const KATEGORILER = [
   { deger: 'ozel', etiket: 'Özel Gün' },
   { deger: 'tatil', etiket: 'Tatil' },
@@ -83,9 +90,14 @@ export default function AnilarPage() {
 
     let fotograf_url = null;
     if (dosya) {
-      const yol = `${coupleId}/${Date.now()}-${dosya.name}`;
+      const yol = `${coupleId}/${guvenliDosyaAdi(dosya)}`;
       const { error: yuklemeHatasi } = await supabase.storage.from('anilar').upload(yol, dosya);
-      if (yuklemeHatasi) { setHata('Fotoğraf yüklenemedi.'); setKaydediliyor(false); return; }
+      if (yuklemeHatasi) {
+        console.error('Anı fotoğrafı yükleme hatası:', yuklemeHatasi);
+        setHata(`Fotoğraf yüklenemedi: ${yuklemeHatasi.message}`);
+        setKaydediliyor(false);
+        return;
+      }
       fotograf_url = supabase.storage.from('anilar').getPublicUrl(yol).data.publicUrl;
     }
 

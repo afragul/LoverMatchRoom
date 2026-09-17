@@ -14,7 +14,8 @@ const TUVAL_ORAN = 0.78;   // yükseklik / genişlik
 
 export default function DrawPage() {
   const { user } = useAuth();
-  const { coupleId, partnerAktif, partner } = useCouple();
+  const { coupleId, partnerSayfa, partner } = useCouple();
+  const partnerBuradaMi = partnerSayfa === '/ciz';
 
   const canvasRef   = useRef(null);
   const sarmalRef   = useRef(null);
@@ -309,7 +310,7 @@ export default function DrawPage() {
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             <span className="text-label-eyebrow">CANLI TUVAL</span>
           </div>
-          {partnerAktif && (
+          {partnerBuradaMi && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-mint-soft text-mint-vibrant">
               <span className="w-1.5 h-1.5 rounded-full bg-mint-vibrant animate-pulse" />
               <span className="text-label-eyebrow text-brown-earth">{partner?.display_name || 'Partnerin'} de burada</span>
@@ -444,7 +445,7 @@ export default function DrawPage() {
       </div>
 
       <p className="text-body-sm text-text-faint text-center">
-        {partnerAktif
+        {partnerBuradaMi
           ? `${partner?.display_name || 'Partnerin'} de aynı tuvalde.`
           : 'Tuval saklanıyor. İstediğin zaman geri dön.'}
       </p>

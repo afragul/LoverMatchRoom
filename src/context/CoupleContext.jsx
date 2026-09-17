@@ -12,8 +12,10 @@ export function CoupleProvider({ children }) {
   const [coupleId, setCoupleId] = useState(null);
   const [uyeler, setUyeler]     = useState([]);   // [{ id, display_name }]
   const [odaIsmi, setOdaIsmi]   = useState(null); // couples.name
-  const [baslangic, setBaslangic] = useState(null); // ilişki başlangıcı
+  const [baslangic, setBaslangic] = useState(null); // ilişki başlangıcı (yoksa oda kurulum tarihi)
+  const [baslangicAyarliMi, setBaslangicAyarliMi] = useState(false); // gerçekten kullanıcı mı girdi
   const [partnerAktif, setPartnerAktif] = useState(false);
+  const [partnerSayfa, setPartnerSayfa] = useState(null);
   const [loading, setLoading]   = useState(true);
 
   const kanalRef = useRef(null);
@@ -51,6 +53,7 @@ export function CoupleProvider({ children }) {
 
     setOdaIsmi(oda?.name ?? null);
     setBaslangic(oda?.started_at ?? oda?.created_at ?? null);
+    setBaslangicAyarliMi(!!oda?.started_at);
 
     const { data: satirlar } = await supabase
       .from('couple_members')
@@ -62,7 +65,7 @@ export function CoupleProvider({ children }) {
 
     const { data: profiller } = await supabase
       .from('profiles')
-      .select('id, display_name')
+      .select('id, display_name, avatar_url')
       .in('id', idler);
 
     setUyeler(
@@ -73,6 +76,42 @@ export function CoupleProvider({ children }) {
   }, [user]);
 
   useEffect(() => { yenile(); }, [yenile]);
+
+  /* ---------------- oda bilgisi canlı senkron ---------------- */
+  useEffect(() => {
+    if (!coupleId) return;
+
+    const kanal = supabase
+      .channel(`couples:${coupleId}`)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'couples', filter: `id=eq.${coupleId}` },
+        ({ new: yeni }) => {
+          setOdaIsmi(yeni.name ?? null);
+          setBaslangic(yeni.started_at ?? yeni.created_at ?? null);
+          setBaslangicAyarliMi(!!yeni.started_at);
+        })
+      .subscribe();
+
+    return () => supabase.removeChannel(kanal);
+  }, [coupleId]);
+
+  /* ---------------- profil (isim/foto) canlı senkron ---------------- */
+  useEffect(() => {
+    if (!coupleId) return;
+
+    const kanal = supabase
+      .channel(`profiles:${coupleId}`)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        ({ new: yeni }) => {
+          setUyeler((e) => e.map((u) => (u.id === yeni.id
+            ? { ...u, display_name: yeni.display_name, avatar_url: yeni.avatar_url }
+            : u)));
+        })
+      .subscribe();
+
+    return () => supabase.removeChannel(kanal);
+  }, [coupleId]);
 
   /* ---------------- çevrimiçi durumu (presence) ---------------- */
   useEffect(() => {
@@ -86,6 +125,9 @@ export function CoupleProvider({ children }) {
       const durum = kanal.presenceState();
       const kimler = Object.keys(durum);
       setPartnerAktif(kimler.some((k) => k !== user.id));
+
+      const partnerKaydi = Object.entries(durum).find(([kim]) => kim !== user.id);
+      setPartnerSayfa(partnerKaydi?.[1]?.[0]?.sayfa ?? null);
     };
 
     kanal
@@ -104,27 +146,48 @@ export function CoupleProvider({ children }) {
       supabase.removeChannel(kanal);
       kanalRef.current = null;
       setPartnerAktif(false);
+      setPartnerSayfa(null);
     };
   }, [coupleId, user]);
 
-  /* ---------------- yazma işlemleri ---------------- */
+  const sayfaBildir = useCallback((sayfa) => {
+    kanalRef.current?.track({ girdi: new Date().toISOString(), sayfa });
+  }, []);
+
+  /* ---------------- yazma işlemleri ----------------
+     .select().maybeSingle() ile: RLS satırı sessizce filtrelerse
+     (0 satır güncellenirse) bunu da hata say, sessizce yutma. */
+  async function coupleGuncelle(alanlar) {
+    const { data, error } = await supabase
+      .from('couples')
+      .update(alanlar)
+      .eq('id', coupleId)
+      .select()
+      .maybeSingle();
+
+    if (error) { console.error('Oda güncellenemedi:', error); return error; }
+    if (!data) {
+      const hata = new Error('Oda güncellenemedi (satır bulunamadı veya izin yok).');
+      console.error(hata.message);
+      return hata;
+    }
+    return data;
+  }
+
   async function odaIsmiKaydet(yeniIsim) {
     const temiz = (yeniIsim ?? '').trim();
-    const { error } = await supabase
-      .from('couples')
-      .update({ name: temiz || null })
-      .eq('id', coupleId);
-    if (!error) setOdaIsmi(temiz || null);
-    return error;
+    const sonuc = await coupleGuncelle({ name: temiz || null });
+    if (sonuc instanceof Error) return sonuc;
+    setOdaIsmi(sonuc.name ?? null);
+    return null;
   }
 
   async function baslangicKaydet(tarih) {
-    const { error } = await supabase
-      .from('couples')
-      .update({ started_at: tarih || null })
-      .eq('id', coupleId);
-    if (!error) setBaslangic(tarih || null);
-    return error;
+    const sonuc = await coupleGuncelle({ started_at: tarih || null });
+    if (sonuc instanceof Error) return sonuc;
+    setBaslangic(sonuc.started_at ?? null);
+    setBaslangicAyarliMi(!!sonuc.started_at);
+    return null;
   }
 
   /* ---------------- türetilmiş değerler ---------------- */
@@ -143,8 +206,8 @@ export function CoupleProvider({ children }) {
   const value = {
     coupleId, uyeler, isimler, ben, partner,
     odaAdi, odaIsmi, odaIsmiKaydet,
-    baslangic, baslangicKaydet, gunSayisi,
-    partnerAktif, loading, yenile,
+    baslangic, baslangicAyarliMi, baslangicKaydet, gunSayisi,
+    partnerAktif, partnerSayfa, sayfaBildir, loading, yenile,
   };
 
   return <CoupleContext.Provider value={value}>{children}</CoupleContext.Provider>;

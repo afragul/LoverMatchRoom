@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCouple } from '../../context/CoupleContext';
@@ -8,15 +7,18 @@ import { Bond } from '../../components/Bond';
 export default function RoomPage() {
   const { signOut } = useAuth();
   const {
-    coupleId, isimler, odaAdi, odaIsmi, odaIsmiKaydet,
-    baslangic, baslangicKaydet, gunSayisi, partnerAktif, partner,
+    coupleId, isimler, ben, odaAdi, odaIsmi, odaIsmiKaydet,
+    baslangic, baslangicKaydet, gunSayisi, partnerAktif, partnerSayfa, partner,
   } = useCouple();
+
+  const partnerBuradaMi = partnerSayfa === '/oda';
 
   const [istatistik, setIstatistik] = useState({ not: 0 });
   const [duzenle, setDuzenle] = useState(false);
   const [taslakIsim, setTaslakIsim] = useState('');
   const [taslakTarih, setTaslakTarih] = useState('');
   const [kaydediliyor, setKaydediliyor] = useState(false);
+  const [hata, setHata] = useState(null);
 
   useEffect(() => {
     if (!coupleId) return;
@@ -30,14 +32,23 @@ export default function RoomPage() {
   function duzenlemeyiAc() {
     setTaslakIsim(odaIsmi ?? '');
     setTaslakTarih(baslangic ? new Date(baslangic).toISOString().slice(0, 10) : '');
+    setHata(null);
     setDuzenle(true);
   }
 
   async function kaydet() {
     setKaydediliyor(true);
-    await odaIsmiKaydet(taslakIsim);
-    await baslangicKaydet(taslakTarih || null);
+    setHata(null);
+
+    const isimHatasi = await odaIsmiKaydet(taslakIsim);
+    const tarihHatasi = await baslangicKaydet(taslakTarih || null);
     setKaydediliyor(false);
+
+    if (isimHatasi || tarihHatasi) {
+      setHata((isimHatasi || tarihHatasi).message || 'Kaydedilemedi.');
+      return;
+    }
+
     setDuzenle(false);
   }
 
@@ -45,15 +56,20 @@ export default function RoomPage() {
     <>
       <section className="bg-surface-card rounded-xl p-space-xl text-center shadow-sm">
         <div className="grid place-items-center mb-space-md">
-          <Bond isimler={isimler} boyut={80} canli={partnerAktif} />
+          <Bond
+            isimler={[ben?.display_name, partner?.display_name]}
+            fotoUrlleri={[ben?.avatar_url, partner?.avatar_url]}
+            boyut={80}
+            partnerAktif={partnerAktif}
+          />
         </div>
 
         <h1 className="text-headline-md text-on-surface">{odaAdi}</h1>
 
         <div className="flex justify-center mt-space-sm">
-          <span className={'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-body-sm font-semibold ' + (partnerAktif ? 'bg-mint-soft text-mint-vibrant' : 'bg-surface-soft text-text-muted')}>
-            <span className={'w-2 h-2 rounded-full ' + (partnerAktif ? 'bg-mint-vibrant animate-pulse' : 'bg-text-faint')} />
-            {partnerAktif ? `${partner?.display_name || 'Partnerin'} şu an burada` : 'Şu an sen buradasın'}
+          <span className={'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-body-sm font-semibold ' + (partnerBuradaMi ? 'bg-mint-soft text-mint-vibrant' : 'bg-surface-soft text-text-muted')}>
+            <span className={'w-2 h-2 rounded-full ' + (partnerBuradaMi ? 'bg-mint-vibrant animate-pulse' : 'bg-text-faint')} />
+            {partnerBuradaMi ? `${partner?.display_name || 'Partnerin'} şu an burada` : 'Şu an sen buradasın'}
           </span>
         </div>
 
@@ -65,23 +81,6 @@ export default function RoomPage() {
       <section className="grid grid-cols-2 gap-space-sm">
         <Kutu deger={gunSayisi !== null ? gunSayisi : '—'} etiket="birlikte geçen gün" ton="bg-tertiary-fixed" />
         <Kutu deger={istatistik.not} etiket="bırakılan not" ton="bg-secondary-fixed" />
-      </section>
-
-      {baslangic === null && (
-        <div className="bg-surface-card rounded-xl p-space-lg shadow-sm">
-          <h3 className="text-headline-sm text-on-surface">Başlangıç tarihi eksik</h3>
-          <p className="text-body-sm text-text-muted mt-1">Gün sayacının doğru çalışması için tarihi girin.</p>
-          <button onClick={duzenlemeyiAc} className="mt-space-sm px-space-md py-2 rounded-full bg-surface-soft text-primary text-label-tab">
-            Tarihi gir
-          </button>
-        </div>
-      )}
-
-      <section className="space-y-space-sm">
-        <p className="text-label-eyebrow text-text-muted uppercase tracking-widest">Buradan git</p>
-        <Gecis yol="/notlar" ad="Notlar" alt={`${istatistik.not} not`} ikon="edit_note" ton="bg-secondary-fixed text-primary" />
-        <Gecis yol="/ciz" ad="Birlikte Çiz" alt="Ortak tuval" ikon="palette" ton="bg-mint-soft text-mint-vibrant" />
-        <Gecis yol="/oyunlar" ad="Oyunlar" alt="Sıra tabanlı" ikon="sports_esports" ton="bg-tertiary-fixed text-brown-earth" />
       </section>
 
       <button onClick={signOut} className="text-text-muted text-label-tab">Çıkış yap</button>
@@ -112,6 +111,8 @@ export default function RoomPage() {
               <p className="text-text-faint text-body-sm mt-1.5">Gün sayacı bu tarihten itibaren sayar.</p>
             </div>
 
+            {hata && <p className="text-primary text-body-sm font-semibold">{hata}</p>}
+
             <button
               onClick={kaydet}
               disabled={kaydediliyor}
@@ -136,20 +137,5 @@ function Kutu({ deger, etiket, ton }) {
       <div className="text-[30px] font-extrabold tracking-tight leading-none text-on-surface">{deger}</div>
       <p className="text-text-faint text-body-sm mt-1.5">{etiket}</p>
     </div>
-  );
-}
-
-function Gecis({ yol, ad, alt, ikon, ton }) {
-  return (
-    <Link to={yol} className="bg-surface-card rounded-xl p-space-md shadow-sm flex items-center gap-space-md">
-      <div className={'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ' + ton}>
-        <span className="material-symbols-outlined text-[20px]">{ikon}</span>
-      </div>
-      <div className="flex-1">
-        <h3 className="text-headline-sm text-on-surface">{ad}</h3>
-        <p className="text-text-faint text-body-sm">{alt}</p>
-      </div>
-      <span className="material-symbols-outlined text-text-faint text-[18px]">arrow_forward</span>
-    </Link>
   );
 }

@@ -15,6 +15,7 @@ import CizBilPage from './features/games/CizBilPage';
 import BilirMisinPage from './features/games/BilirMisinPage';
 import RoomPage from './features/room/RoomPage';
 import AnilarPage from './features/anilar/AnilarPage';
+import ProfilPage from './features/profil/ProfilPage';
 
 function Yukleniyor() {
   return (
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/oyunlar/bilirmisin" element={<BilirMisinPage />} />
           <Route path="/anilar"  element={<AnilarPage />} />
           <Route path="/oda"     element={<RoomPage />} />
+          <Route path="/profil"  element={<ProfilPage />} />
           <Route path="*"        element={<Navigate to="/" replace />} />
         </Routes>
       </AppShell>

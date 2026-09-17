@@ -30,13 +30,14 @@ function sonrakiYildonumu(baslangic) {
 }
 
 const HISSETTIRENLER = [
-  { tur: 'opucuk', etiket: 'Öpücük Yolla', emoji: '💋' },
-  { tur: 'dusunuyorum', etiket: 'Seni Düşünüyorum', emoji: '💭' },
+  { tur: 'opucuk', etiket: 'Öpücük Yolla', emoji: '💋', aliciMetni: (isim) => `${isim} sana öpücük yolladı` },
+  { tur: 'dusunuyorum', etiket: 'Seni Düşünüyorum', emoji: '💭', aliciMetni: (isim) => `${isim} seni düşünüyor` },
 ];
 
 export default function HomePage() {
   const { user } = useAuth();
-  const { coupleId, isimler, partner, partnerAktif, baslangic } = useCouple();
+  const { coupleId, isimler, partner, partnerSayfa, baslangic, baslangicAyarliMi } = useCouple();
+  const partnerBuradaMi = partnerSayfa === '/';
 
   const kanalRef = useRef(null);
 
@@ -47,7 +48,7 @@ export default function HomePage() {
   const [gecenYilAnisi, setGecenYilAnisi] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const yildonumu = sonrakiYildonumu(baslangic);
+  const yildonumu = baslangicAyarliMi ? sonrakiYildonumu(baslangic) : null;
 
   useEffect(() => {
     if (!coupleId) return;
@@ -98,7 +99,8 @@ export default function HomePage() {
       .on('broadcast', { event: 'ping' }, ({ payload }) => {
         if (payload.kim === user.id) return;
         const h = HISSETTIRENLER.find((x) => x.tur === payload.tur);
-        setToast(`${h?.emoji ?? '💛'} ${partner?.display_name || 'Partnerin'} sana ${h?.etiket.toLowerCase() ?? 'bir şey'} gönderdi!`);
+        const isim = partner?.display_name || 'Partnerin';
+        setToast(h ? `${h.emoji} ${h.aliciMetni(isim)}` : `💛 ${isim} bir şey gönderdi`);
         setTimeout(() => setToast(null), 3500);
       })
       .subscribe();
@@ -124,7 +126,7 @@ export default function HomePage() {
         <p className="text-label-eyebrow text-primary uppercase tracking-widest">{selamla()}</p>
         <h1 className="text-headline-lg-mobile text-on-surface">{isimler.join(' & ')}</h1>
         <p className="text-body-sm text-text-muted">
-          {partnerAktif ? `${partner?.display_name || 'Partnerin'} şu an burada.` : 'Şu an yalnızsın, ama yakında burada olur.'}
+          {partnerBuradaMi ? `${partner?.display_name || 'Partnerin'} şu an burada.` : 'Şu an yalnızsın, ama yakında burada olur.'}
         </p>
 
         <div className="grid grid-cols-2 gap-space-sm pt-space-xs">
@@ -164,6 +166,18 @@ export default function HomePage() {
             <div className="h-full bg-white/80 rounded-full transition-all" style={{ width: `${yildonumu.yuzde}%` }} />
           </div>
         </section>
+      )}
+
+      {!baslangicAyarliMi && (
+        <Link to="/oda" className="block bg-surface-card rounded-xl p-space-lg shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="material-symbols-outlined text-primary text-[20px]">favorite</span>
+            <h2 className="text-headline-sm text-on-surface">Yıldönümü sayacı</h2>
+          </div>
+          <p className="text-body-sm text-text-muted">
+            İlişkinizin başlangıç tarihini girin, yıldönümüne kaç gün kaldığını burada görün.
+          </p>
+        </Link>
       )}
 
       {/* ---------- Canlı Çizim önizleme ---------- */}

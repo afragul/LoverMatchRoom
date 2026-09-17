@@ -269,11 +269,9 @@ export default function BilirMisinPage() {
                 </strong>{' '}
                 {tur.tahmin}
               </p>
-              <p className="flex items-center gap-1.5 text-on-surface">
-                <span className="material-symbols-outlined text-[18px] text-mint-vibrant">check_circle</span>
+              <p className="text-on-surface">
                 <strong>Gerçek cevap:</strong> {hedefCevap}
               </p>
-              <p className="text-text-faint text-body-sm">Doğru bilip bilmediğine siz karar verin.</p>
             </div>
           )}
 

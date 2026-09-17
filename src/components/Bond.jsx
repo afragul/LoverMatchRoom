@@ -1,7 +1,5 @@
 /* =====================================================================
-   Bond — uygulamanın imza öğesi.
-   İki avatar iç içe geçer; ikisi de çevrimiçiyse dış halka
-   yavaşça nefes alır. Tek "cesur" görsel öğe bu, gerisi sakin.
+   Bond — uygulamanın imza öğesi. İki avatar iç içe geçer.
    ===================================================================== */
 
 function bashHarf(isim) {
@@ -19,62 +17,63 @@ function tonlar(isim) {
   return paletler[kod % paletler.length];
 }
 
-export function Avatar({ isim, boyut = 44 }) {
+export function Avatar({ isim, boyut = 44, aktif, fotoUrl }) {
   const [zemin, yazi] = tonlar(isim);
+  const noktaBoyut = Math.max(10, boyut * 0.22);
+
   return (
-    <div
-      style={{
-        width: boyut,
-        height: boyut,
-        borderRadius: '50%',
-        background: zemin,
-        color: yazi,
-        display: 'grid',
-        placeItems: 'center',
-        fontWeight: 800,
-        fontSize: boyut * 0.4,
-        border: '3px solid #fff',
-        flexShrink: 0,
-      }}
-    >
-      {bashHarf(isim)}
+    <div style={{ position: 'relative', flexShrink: 0 }}>
+      <div
+        style={{
+          width: boyut,
+          height: boyut,
+          borderRadius: '50%',
+          background: zemin,
+          color: yazi,
+          display: 'grid',
+          placeItems: 'center',
+          fontWeight: 800,
+          fontSize: boyut * 0.4,
+          border: '3px solid #fff',
+          overflow: 'hidden',
+        }}
+      >
+        {fotoUrl ? (
+          <img src={fotoUrl} alt={isim || 'Avatar'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          bashHarf(isim)
+        )}
+      </div>
+
+      {aktif !== undefined && (
+        <span
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: noktaBoyut,
+            height: noktaBoyut,
+            borderRadius: '50%',
+            background: aktif ? 'var(--green)' : 'var(--text-faint)',
+            border: '2px solid #fff',
+          }}
+        />
+      )}
     </div>
   );
 }
 
-export function Bond({ isimler = [], boyut = 88, canli = false }) {
+export function Bond({ isimler = [], fotoUrlleri = [], boyut = 88, partnerAktif }) {
   const [a, b] = isimler;
+  const [fotoA, fotoB] = fotoUrlleri;
   const ortu = boyut * 0.26;
 
   return (
-    <div style={{ position: 'relative', display: 'grid', placeItems: 'center' }}>
-      {/* nefes alan halka */}
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          width: boyut * 2 - ortu + 34,
-          height: boyut + 34,
-          borderRadius: 999,
-          border: `1.5px solid ${canli ? 'var(--green)' : 'var(--hairline)'}`,
-          opacity: canli ? 0.5 : 0.7,
-          animation: canli ? 'nefes 3.6s ease-in-out infinite' : 'none',
-        }}
-      />
-
-      <div style={{ display: 'flex', marginRight: -ortu }}>
-        <Avatar isim={a} boyut={boyut} />
-        <div style={{ marginLeft: -ortu }}>
-          <Avatar isim={b} boyut={boyut} />
-        </div>
+    <div style={{ display: 'flex', marginRight: -ortu }}>
+      <Avatar isim={a} boyut={boyut} fotoUrl={fotoA} />
+      <div style={{ marginLeft: -ortu }}>
+        <Avatar isim={b} boyut={boyut} aktif={partnerAktif} fotoUrl={fotoB} />
       </div>
-
-      <style>{`
-        @keyframes nefes {
-          0%, 100% { transform: scale(1);    opacity: 0.35; }
-          50%      { transform: scale(1.04); opacity: 0.65; }
-        }
-      `}</style>
     </div>
   );
 }
