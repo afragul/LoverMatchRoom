@@ -1,16 +1,56 @@
-# React + Vite
+# LoverMatchRoom
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Çiftler için ortak dijital oda: davet koduyla eşleş, notlar bırak, birlikte çizim yap, yakında oyun oyna.
 
-Currently, two official plugins are available:
+React + Vite ön yüzü ve Supabase (Postgres + Auth + Realtime) arka ucu ile çalışır. Arayüz tamamen Türkçe.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Özellikler
 
-## React Compiler
+- **Eşleşme** — bir kullanıcı 8 haneli davet kodu üretir, diğeri bu kodla katılır; bir çift (`couple`) en fazla 2 üyeden oluşur.
+- **Ana sayfa** — çiftin ortak durumu ve partnerin aktif/pasif bilgisi.
+- **Notlar** — çifte özel not bırakma.
+- **Çiz** — gerçek zamanlı ortak çizim tahtası: partnerin çizgileri Supabase realtime broadcast ile anlık akar, tamamlanan çizgiler kalıcı olarak saklanır (undo/redo, renk/kalınlık seçimi, görsel indirme).
+- **Oyunlar** — sırayla oynanan oyunlar için hazırlık ekranı (XOX, Kelime Düellosu, Çiz ve Tahmin Et, Bunu Bilir misin — henüz aktif değil).
+- **Anılar** — planlanan fotoğraf/tarih arşivi (henüz veri katmanına bağlı değil).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Proje yapısı
 
-## Expanding the ESLint configuration
+```
+src/
+  context/    AuthContext, CoupleContext — oturum ve çift durumu
+  features/   auth, match, home, notes, draw, games, room
+  components/ AppShell, Icons, Bond gibi paylaşılan UI parçaları
+  lib/        Supabase istemcisi
+supabase/
+  schema.sql  Veritabanı şeması: tablolar, RLS politikaları, RPC fonksiyonları
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Kurulum
+
+```bash
+npm install
+```
+
+Proje kökünde bir `.env` dosyası oluşturup Supabase proje bilgilerini girin:
+
+```
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
+
+Supabase tarafında SQL Editor'den [supabase/schema.sql](supabase/schema.sql) dosyasını çalıştırın (tablolar, RLS ve davet kodu RPC'lerini kurar).
+
+> Not: [DrawPage.jsx](src/features/draw/DrawPage.jsx) bir `strokes` tablosu kullanıyor; bu tablo henüz `schema.sql` içine eklenmemiş — çizim özelliğini kullanmadan önce bu tabloyu (couple_id, author_id, data, RLS ile) şemaya eklemeniz gerekir.
+
+Geliştirme sunucusunu başlatın:
+
+```bash
+npm run dev
+```
+
+## Komutlar
+
+- `npm run dev` — geliştirme sunucusu
+- `npm run build` — üretim derlemesi
+- `npm run lint` — ESLint kontrolü
+- `npm run preview` — üretim derlemesini yerelde önizle
