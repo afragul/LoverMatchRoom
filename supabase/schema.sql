@@ -105,7 +105,7 @@ create table public.duello_games (
 create table public.cizbil_games (
   couple_id  uuid primary key references public.couples(id) on delete cascade,
   cizen_id   uuid not null references auth.users(id),
-  durum      text not null default 'ciziliyor',   -- 'ciziliyor' | 'bulundu' | 'vazgecildi'
+  durum      text not null default 'ciziliyor',   -- 'kelime_bekleniyor' | 'ciziliyor' | 'bulundu' | 'vazgecildi'
   kelime     text,
   basladi    timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -155,6 +155,81 @@ create table public.anilar (
   fotograf_url text,
   favori       boolean not null default false,
   created_at   timestamptz not null default now()
+);
+
+-- UNO: gerçek 108 kartlık deste, couple başına tek satır.
+-- eller: { "<user_id>": [kart, kart, ...] } — her oyuncu kendi eline yazar,
+-- ama satır couple'a açık olduğu için (diğer oyunlardaki gibi) karşı taraf
+-- teknik olarak network sekmesinden elini görebilir — dürüstlük esasına dayanır.
+create table public.uno_games (
+  couple_id    uuid primary key references public.couples(id) on delete cascade,
+  deste        jsonb not null,
+  atilanlar    jsonb not null,
+  eller        jsonb not null,
+  gecerli_renk text not null,
+  sira         uuid references auth.users(id),
+  kazanan      uuid references auth.users(id),
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+-- KUTU DOLDURMA (Dots and Boxes): 4x4 nokta -> 3x3 kutu, couple başına tek satır.
+-- yatay/dikey: her kenarın sahibi (çizen kullanıcının id'si) ya da null.
+-- kutular: her kutunun sahibi (son kenarı tamamlayan kullanıcı) ya da null.
+-- kazanan text: kazanan user_id'si ya da 'berabere' (XOX'taki desenle aynı).
+create table public.dotsboxes_games (
+  couple_id  uuid primary key references public.couples(id) on delete cascade,
+  yatay      jsonb not null,
+  dikey      jsonb not null,
+  kutular    jsonb not null,
+  sira       uuid references auth.users(id),
+  kazanan    text,
+  updated_at timestamptz not null default now()
+);
+
+-- BAĞLAN 4 (Connect 4): 7 sütun x 6 satır, couple başına tek satır.
+-- board: 42 elemanlı düz dizi (satır-major), her hücre null | 'kirmizi' | 'sari'.
+-- kirmizi_id: oyunu başlatan taraf, kırmızı taşlarla oynar.
+create table public.connect4_games (
+  couple_id  uuid primary key references public.couples(id) on delete cascade,
+  board      jsonb not null,
+  kirmizi_id uuid not null references auth.users(id),
+  sira       uuid references auth.users(id),
+  kazanan    text,
+  updated_at timestamptz not null default now()
+);
+
+-- REVERSİ (Othello): 8x8 tahta, couple başına tek satır.
+-- board: 64 elemanlı düz dizi (satır-major), her hücre null | 'siyah' | 'beyaz'.
+-- siyah_id: oyunu başlatan taraf, siyah taşlarla oynar ve ilk hamleyi yapar.
+create table public.reversi_games (
+  couple_id  uuid primary key references public.couples(id) on delete cascade,
+  board      jsonb not null,
+  siyah_id   uuid not null references auth.users(id),
+  sira       uuid references auth.users(id),
+  kazanan    text,
+  updated_at timestamptz not null default now()
+);
+
+-- AMİRAL BATTI (Battleship): 8x8 tahta, couple başına tek satır.
+-- gemiler/hazir/atislar: { "<user_id>": [...] } — her oyuncu kendi anahtarına yazar.
+-- gemiler: gemi başına bir hücre-indeksi (0-63) dizisi, yani dizi içinde dizi
+-- (örn. [[12,13,14],[20,28]]) — her gemi ayrı tutulur ki arayüzde tek tek
+-- gösterilebilsin. atislar ise attığı hücrelerin düz indeks dizisidir.
+-- Diğer oyunlardaki (UNO eller) desenle aynı: satır couple'a açık olduğu için
+-- karşı taraf teknik olarak network sekmesinden gemi yerlerini görebilir —
+-- dürüstlük esasına dayanır.
+-- created_at: her "oyunu başlat" tıklamasında istemci tarafından yeniden yazılır
+-- (yeni tur = yeni id), frontend'de yerel gemi taslağını sıfırlamak için kullanılır.
+create table public.battleship_games (
+  couple_id  uuid primary key references public.couples(id) on delete cascade,
+  gemiler    jsonb not null default '{}'::jsonb,
+  hazir      jsonb not null default '{}'::jsonb,
+  atislar    jsonb not null default '{}'::jsonb,
+  sira       uuid references auth.users(id),
+  kazanan    uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 
@@ -390,6 +465,11 @@ alter table public.bilirmisin_profil enable row level security;
 alter table public.bilirmisin_tur    enable row level security;
 alter table public.oyun_sonuclari    enable row level security;
 alter table public.anilar            enable row level security;
+alter table public.uno_games         enable row level security;
+alter table public.dotsboxes_games   enable row level security;
+alter table public.connect4_games    enable row level security;
+alter table public.reversi_games     enable row level security;
+alter table public.battleship_games  enable row level security;
 
 -- PROFILES: kendi profilini + partnerinin profilini gör
 create policy "read own or partner profile"
@@ -529,6 +609,71 @@ create policy "update couple bilirmisin_tur"
   on public.bilirmisin_tur for update
   using (public.is_couple_member(couple_id));
 
+-- UNO_GAMES: sadece kendi couple'ının oyunu
+create policy "read couple uno_games"
+  on public.uno_games for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple uno_games"
+  on public.uno_games for insert
+  with check (public.is_couple_member(couple_id));
+
+create policy "update couple uno_games"
+  on public.uno_games for update
+  using (public.is_couple_member(couple_id));
+
+-- DOTSBOXES_GAMES: sadece kendi couple'ının oyunu
+create policy "read couple dotsboxes_games"
+  on public.dotsboxes_games for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple dotsboxes_games"
+  on public.dotsboxes_games for insert
+  with check (public.is_couple_member(couple_id));
+
+create policy "update couple dotsboxes_games"
+  on public.dotsboxes_games for update
+  using (public.is_couple_member(couple_id));
+
+-- CONNECT4_GAMES: sadece kendi couple'ının oyunu
+create policy "read couple connect4_games"
+  on public.connect4_games for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple connect4_games"
+  on public.connect4_games for insert
+  with check (public.is_couple_member(couple_id) and kirmizi_id = auth.uid());
+
+create policy "update couple connect4_games"
+  on public.connect4_games for update
+  using (public.is_couple_member(couple_id));
+
+-- REVERSI_GAMES: sadece kendi couple'ının oyunu
+create policy "read couple reversi_games"
+  on public.reversi_games for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple reversi_games"
+  on public.reversi_games for insert
+  with check (public.is_couple_member(couple_id) and siyah_id = auth.uid());
+
+create policy "update couple reversi_games"
+  on public.reversi_games for update
+  using (public.is_couple_member(couple_id));
+
+-- BATTLESHIP_GAMES: sadece kendi couple'ının oyunu
+create policy "read couple battleship_games"
+  on public.battleship_games for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple battleship_games"
+  on public.battleship_games for insert
+  with check (public.is_couple_member(couple_id));
+
+create policy "update couple battleship_games"
+  on public.battleship_games for update
+  using (public.is_couple_member(couple_id));
+
 -- OYUN_SONUCLARI: append-only log, sadece couple içi okuma/yazma
 create policy "read couple oyun_sonuclari"
   on public.oyun_sonuclari for select
@@ -577,6 +722,11 @@ alter publication supabase_realtime add table public.bilirmisin_tur;
 alter publication supabase_realtime add table public.oyun_sonuclari;
 alter publication supabase_realtime add table public.anilar;
 alter publication supabase_realtime add table public.couples;
+alter publication supabase_realtime add table public.uno_games;
+alter publication supabase_realtime add table public.dotsboxes_games;
+alter publication supabase_realtime add table public.connect4_games;
+alter publication supabase_realtime add table public.reversi_games;
+alter publication supabase_realtime add table public.battleship_games;
 
 
 -- ---------------------------------------------------------------------
