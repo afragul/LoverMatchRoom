@@ -82,6 +82,16 @@ create table public.xox_games (
   updated_at timestamptz not null default now()
 );
 
+-- KELİME DÜELLOSU: aynı harflerden süreli tur, kim daha çok kelime yazar
+-- cevaplar: { "<user_id>": ["KELIME1", "KELIME2", ...] } — her oyuncu kendi anahtarına yazar
+create table public.duello_games (
+  couple_id  uuid primary key references public.couples(id) on delete cascade,
+  harfler    jsonb not null,
+  bitis      timestamptz not null,
+  cevaplar   jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 
 -- ---------------------------------------------------------------------
 -- 2) YARDIMCI FONKSİYONLAR
@@ -274,6 +284,31 @@ $$;
 
 
 -- ---------------------------------------------------------------------
+-- 4c) KELİME DÜELLOSU: KELİMELERİ GÖNDER (atomik merge)
+--     Frontend'den:  supabase.rpc('submit_duello_words', { p_couple_id, p_kelimeler })
+--     İki oyuncu da aynı anda gönderirse birbirinin anahtarını ezmesin diye
+--     düz update yerine bu fonksiyon kullanılıyor.
+-- ---------------------------------------------------------------------
+create or replace function public.submit_duello_words(p_couple_id uuid, p_kelimeler jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_couple_member(p_couple_id) then
+    raise exception 'NOT_COUPLE_MEMBER';
+  end if;
+
+  update duello_games
+     set cevaplar   = coalesce(cevaplar, '{}'::jsonb) || jsonb_build_object(auth.uid()::text, p_kelimeler),
+         updated_at = now()
+   where couple_id = p_couple_id;
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------
 -- 5) RLS (Row Level Security) — asıl güvenlik burada
 -- ---------------------------------------------------------------------
 
@@ -284,6 +319,7 @@ alter table public.invites        enable row level security;
 alter table public.notes          enable row level security;
 alter table public.strokes        enable row level security;
 alter table public.xox_games      enable row level security;
+alter table public.duello_games   enable row level security;
 
 -- PROFILES: kendi profilini + partnerinin profilini gör
 create policy "read own or partner profile"
@@ -355,6 +391,21 @@ create policy "update couple xox_games"
   on public.xox_games for update
   using (public.is_couple_member(couple_id));
 
+-- DUELLO_GAMES: sadece kendi couple'ının turu
+-- (kelime gönderimi RLS'i bypass eden submit_duello_words RPC'si üzerinden;
+--  düz update politikası sadece "yeni tur başlat" upsert'i için gerekli)
+create policy "read couple duello_games"
+  on public.duello_games for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple duello_games"
+  on public.duello_games for insert
+  with check (public.is_couple_member(couple_id));
+
+create policy "update couple duello_games"
+  on public.duello_games for update
+  using (public.is_couple_member(couple_id));
+
 
 -- ---------------------------------------------------------------------
 -- 6) REALTIME (anlık senkron için)
@@ -362,3 +413,4 @@ create policy "update couple xox_games"
 alter publication supabase_realtime add table public.notes;
 alter publication supabase_realtime add table public.strokes;
 alter publication supabase_realtime add table public.xox_games;
+alter publication supabase_realtime add table public.duello_games;

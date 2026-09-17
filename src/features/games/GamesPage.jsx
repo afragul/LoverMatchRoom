@@ -15,7 +15,8 @@ const OYUNLAR = [
     alt: 'Aynı harflerden kim daha çok kelime çıkarır',
     isaret: 'Aa',
     ton: 'var(--accent)',
-    hazir: false,
+    hazir: true,
+    yol: '/oyunlar/duello',
   },
   {
     ad: 'Çiz ve Tahmin Et',

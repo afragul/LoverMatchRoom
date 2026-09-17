@@ -10,6 +10,7 @@ import NotesPage from './features/notes/NotesPage';
 import GamesPage from './features/games/GamesPage';
 import DrawPage from './features/draw/DrawPage';
 import XoxPage from './features/games/XoxPage';
+import DuelloPage from './features/games/DuelloPage';
 import RoomPage from './features/room/RoomPage';
 
 function Yukleniyor() {
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="/ciz"     element={<DrawPage />} />
           <Route path="/oyunlar" element={<GamesPage />} />
           <Route path="/oyunlar/xox" element={<XoxPage />} />
+          <Route path="/oyunlar/duello" element={<DuelloPage />} />
           <Route path="/anilar"  element={<AnilarPage />} />
           <Route path="/oda"     element={<RoomPage />} />
           <Route path="*"        element={<Navigate to="/" replace />} />
