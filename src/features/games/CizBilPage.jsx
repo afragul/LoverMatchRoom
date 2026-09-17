@@ -31,7 +31,7 @@ function normale(s) {
 export default function CizBilPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { coupleId, partner } = useCouple();
+  const { coupleId, uyeler, partner } = useCouple();
 
   const canvasRef = useRef(null);
   const sarmalRef = useRef(null);
@@ -59,7 +59,9 @@ export default function CizBilPage() {
   const tazele = () => setSayac((s) => s + 1);
 
   const benimCizenOldugum = !!(oyun && oyun.cizen_id === user.id);
-  const turBitti          = !!(oyun && oyun.durum !== 'ciziliyor');
+  const kelimeSeciliyorMu = !!(oyun && oyun.durum === 'kelime_bekleniyor');
+  const turBitti          = !!(oyun && (oyun.durum === 'bulundu' || oyun.durum === 'vazgecildi'));
+  const cizimAktif        = !!(oyun && oyun.durum === 'ciziliyor');
 
   useEffect(() => { oyunRef.current = oyun; }, [oyun]);
 
@@ -108,11 +110,16 @@ export default function CizBilPage() {
     ciz();
   }, [ciz]);
 
+  // Tuval sadece belirli bir oyun durumunda DOM'a giriyor (koşullu render) —
+  // ilk yüklemede değil, her göründüğünde yeniden ölçeklenmesi lazım.
+  const tuvalGorunurMu = cizimAktif;
+
   useEffect(() => {
+    if (!tuvalGorunurMu) return;
     olcekle();
     window.addEventListener('resize', olcekle);
     return () => window.removeEventListener('resize', olcekle);
-  }, [olcekle]);
+  }, [olcekle, tuvalGorunurMu]);
 
   /* ================= yükle ================= */
 
@@ -202,30 +209,51 @@ export default function CizBilPage() {
     bulunduIsaretRef.current = false;
     kelimemGizliRef.current = oyun.cizen_id === user.id ? kelimemGizliRef.current : null;
     setKelimemGizli(kelimemGizliRef.current);
+    setSecenekler(null);
     setTahminler([]);
     setGirdi('');
     setHata(null);
     tazele();
   }, [oyun, user.id]);
 
+  /* ================= atanan çizen için otomatik kelime seçenekleri ================= */
+
+  useEffect(() => {
+    if (
+      oyun && oyun.durum === 'kelime_bekleniyor' &&
+      oyun.cizen_id === user.id &&
+      secenekler === null &&
+      kelimemGizliRef.current === null
+    ) {
+      setSecenekler(rastgele3Kelime());
+    }
+  }, [oyun, user.id, secenekler]);
+
   function yayinla(event, payload) {
     kanalRef.current?.send({ type: 'broadcast', event, payload: { kim: user.id, ...payload } });
   }
 
-  /* ================= tur başlat ================= */
+  /* ================= tur başlat / sırayı devret ================= */
 
-  async function kelimeSec(kelime) {
-    kelimemGizliRef.current = kelime;
-    setKelimemGizli(kelime);
-    bulunduIsaretRef.current = false;
-    setSecenekler(null);
+  function siradakiCizenId() {
+    if (!oyun) {
+      const rastgele = uyeler[Math.floor(Math.random() * uyeler.length)];
+      return rastgele?.id ?? user.id;
+    }
+    const diger = uyeler.find((u) => u.id !== oyun.cizen_id);
+    return diger?.id ?? oyun.cizen_id;
+  }
+
+  async function turuBaslat() {
+    setHata(null);
+    const cizenId = siradakiCizenId();
 
     const { data, error } = await supabase
       .from('cizbil_games')
       .upsert({
         couple_id: coupleId,
-        cizen_id: user.id,
-        durum: 'ciziliyor',
+        cizen_id: cizenId,
+        durum: 'kelime_bekleniyor',
         kelime: null,
         basladi: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -238,7 +266,28 @@ export default function CizBilPage() {
     cizgilerRef.current = [];
     aktifRef.current = null;
     canliRef.current = null;
+    bulunduIsaretRef.current = false;
+    kelimemGizliRef.current = null;
+    setKelimemGizli(null);
+    setSecenekler(null);
     setTahminler([]);
+    setOyun(data);
+  }
+
+  async function kelimeSec(kelime) {
+    kelimemGizliRef.current = kelime;
+    setKelimemGizli(kelime);
+    bulunduIsaretRef.current = false;
+    setSecenekler(null);
+
+    const { data, error } = await supabase
+      .from('cizbil_games')
+      .update({ durum: 'ciziliyor', updated_at: new Date().toISOString() })
+      .eq('couple_id', coupleId)
+      .select()
+      .single();
+
+    if (error) { setHata('Kelime kaydedilemedi.'); return; }
     setOyun(data);
   }
 
@@ -320,53 +369,66 @@ export default function CizBilPage() {
 
       {yukleniyor && <p className="text-body-sm text-text-muted">Yükleniyor…</p>}
 
-      {!yukleniyor && secenekler && (
-        <div className="bg-surface-card rounded-xl p-space-xl text-center shadow-sm">
-          <h3 className="text-headline-sm text-on-surface">Hangi kelimeyi çizmek istersin?</h3>
-          <div className="flex flex-col gap-space-sm mt-space-md">
-            {secenekler.map((k) => (
-              <button
-                key={k}
-                onClick={() => kelimeSec(k)}
-                className="w-full py-2.5 rounded-full bg-surface-soft text-primary text-label-button"
-              >
-                {k}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!yukleniyor && !secenekler && (!oyun || turBitti) && (
+      {!yukleniyor && !oyun && (
         <div className="bg-surface-card rounded-xl p-space-2xl text-center shadow-sm">
-          {oyun && turBitti && (
-            <>
-              <p className="text-label-eyebrow text-primary uppercase">Kelime</p>
-              <h3 className="text-headline-sm text-on-surface mt-1 mb-space-sm">{oyun.kelime || '(kayboldu)'}</h3>
-              <p className="text-body-sm text-text-muted mb-space-md">
-                {oyun.durum === 'bulundu'
-                  ? (oyun.cizen_id === user.id
-                      ? `${partner?.display_name || 'Partnerin'} buldu!`
-                      : 'Buldun!')
-                  : 'Pes edildi.'}
-              </p>
-            </>
-          )}
-          {!oyun && (
-            <p className="text-body-sm text-text-muted mb-space-md">
-              Biri çizer, diğeri tahmin eder. Kelime karşı tarafa hiç gösterilmez.
-            </p>
-          )}
+          <p className="text-body-sm text-text-muted mb-space-md">
+            Biri çizer, diğeri tahmin eder. Kelime karşı tarafa hiç gösterilmez. Kim çizecek rastgele belirlenir, sonraki turlarda sırayla devreder.
+          </p>
           <button
-            onClick={() => setSecenekler(rastgele3Kelime())}
+            onClick={turuBaslat}
             className="px-space-xl py-2.5 rounded-full bg-primary text-on-primary text-label-button shadow-md"
           >
-            Ben çizeyim
+            Turu Başlat
           </button>
         </div>
       )}
 
-      {!secenekler && oyun && !turBitti && (
+      {!yukleniyor && turBitti && (
+        <div className="bg-surface-card rounded-xl p-space-2xl text-center shadow-sm">
+          <p className="text-label-eyebrow text-primary uppercase">Kelime</p>
+          <h3 className="text-headline-sm text-on-surface mt-1 mb-space-sm">{oyun.kelime || '(kayboldu)'}</h3>
+          <p className="text-body-sm text-text-muted mb-space-md">
+            {oyun.durum === 'bulundu'
+              ? (oyun.cizen_id === user.id
+                  ? `${partner?.display_name || 'Partnerin'} buldu!`
+                  : 'Buldun!')
+              : 'Pes edildi.'}
+          </p>
+          <button
+            onClick={turuBaslat}
+            className="px-space-xl py-2.5 rounded-full bg-primary text-on-primary text-label-button shadow-md"
+          >
+            Yeni Tur
+          </button>
+        </div>
+      )}
+
+      {!yukleniyor && kelimeSeciliyorMu && (
+        benimCizenOldugum ? (
+          <div className="bg-surface-card rounded-xl p-space-xl text-center shadow-sm">
+            <h3 className="text-headline-sm text-on-surface">Hangi kelimeyi çizmek istersin?</h3>
+            <div className="flex flex-col gap-space-sm mt-space-md">
+              {(secenekler ?? []).map((k) => (
+                <button
+                  key={k}
+                  onClick={() => kelimeSec(k)}
+                  className="w-full py-2.5 rounded-full bg-surface-soft text-primary text-label-button"
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-surface-card rounded-xl p-space-2xl text-center shadow-sm">
+            <p className="text-body-sm text-text-muted">
+              Sıra {partner?.display_name || 'partnerinde'}, kelime seçiyor…
+            </p>
+          </div>
+        )
+      )}
+
+      {cizimAktif && (
         <>
           <p className="text-body-sm text-text-muted">
             {benimCizenOldugum

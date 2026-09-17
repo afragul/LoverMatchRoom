@@ -13,6 +13,11 @@ import XoxPage from './features/games/XoxPage';
 import DuelloPage from './features/games/DuelloPage';
 import CizBilPage from './features/games/CizBilPage';
 import BilirMisinPage from './features/games/BilirMisinPage';
+import UnoPage from './features/games/UnoPage';
+import DotsBoxesPage from './features/games/DotsBoxesPage';
+import Connect4Page from './features/games/Connect4Page';
+import ReversiPage from './features/games/ReversiPage';
+import BattleshipPage from './features/games/BattleshipPage';
 import RoomPage from './features/room/RoomPage';
 import AnilarPage from './features/anilar/AnilarPage';
 import ProfilPage from './features/profil/ProfilPage';
@@ -53,6 +58,11 @@ export default function App() {
           <Route path="/oyunlar/duello" element={<DuelloPage />} />
           <Route path="/oyunlar/cizbil" element={<CizBilPage />} />
           <Route path="/oyunlar/bilirmisin" element={<BilirMisinPage />} />
+          <Route path="/oyunlar/uno" element={<UnoPage />} />
+          <Route path="/oyunlar/kutudoldurma" element={<DotsBoxesPage />} />
+          <Route path="/oyunlar/connect4" element={<Connect4Page />} />
+          <Route path="/oyunlar/reversi" element={<ReversiPage />} />
+          <Route path="/oyunlar/amiralbatti" element={<BattleshipPage />} />
           <Route path="/anilar"  element={<AnilarPage />} />
           <Route path="/oda"     element={<RoomPage />} />
           <Route path="/profil"  element={<ProfilPage />} />

@@ -9,6 +9,11 @@ const OYUNLAR = [
   { ad: 'Kelime Düellosu', alt: 'Aynı harflerden kim daha çok kelime çıkarır', ikon: 'spellcheck', ton: 'bg-tertiary-fixed text-brown-earth', yol: '/oyunlar/duello' },
   { ad: 'Çiz ve Tahmin Et', alt: 'Biri çizer, diğeri bilir', ikon: 'draw', ton: 'bg-mint-soft text-mint-vibrant', yol: '/oyunlar/cizbil' },
   { ad: 'Bunu Bilir misin', alt: 'Partnerin hakkında sorular', ikon: 'quiz', ton: 'bg-surface-soft text-primary', yol: '/oyunlar/bilirmisin' },
+  { ad: 'UNO', alt: 'Klasik kart oyunu, önce elini bitiren kazanır', ikon: 'style', ton: 'bg-tertiary-fixed text-primary', yol: '/oyunlar/uno' },
+  { ad: 'Kutu Doldurma', alt: 'Çizgiyi çek, kutuyu tamamla, tekrar oyna', ikon: 'border_all', ton: 'bg-secondary-fixed text-brown-earth', yol: '/oyunlar/kutudoldurma' },
+  { ad: 'Dört Taş', alt: 'Sırayla taş bırak, önce 4\'lü sıra yapan kazanır', ikon: 'view_column', ton: 'bg-mint-soft text-primary', yol: '/oyunlar/connect4' },
+  { ad: 'Revers', alt: 'Rakip taşları çevirerek tahtayı ele geçir', ikon: 'radio_button_checked', ton: 'bg-secondary-fixed text-mint-vibrant', yol: '/oyunlar/reversi' },
+  { ad: 'Amiral Battı', alt: 'Filonu diz, partnerinin sularına ateş et', ikon: 'sailing', ton: 'bg-tertiary-fixed text-mint-vibrant', yol: '/oyunlar/amiralbatti' },
 ];
 
 export default function GamesPage() {
