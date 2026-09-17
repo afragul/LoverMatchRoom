@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import './styles/tailwind.css';
 import './styles/theme.css';
 import { AuthProvider } from './context/AuthContext';
 import { CoupleProvider } from './context/CoupleContext';

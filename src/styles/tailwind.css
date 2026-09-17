@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+@theme {
+  /* ---- renkler (DESIGN.md) ---- */
+  --color-surface: #fff8f7;
+  --color-surface-dim: #ead5d8;
+  --color-surface-bright: #fff8f7;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #fff0f1;
+  --color-surface-container: #fee9eb;
+  --color-surface-container-high: #f8e3e6;
+  --color-surface-container-highest: #f2dde0;
+  --color-on-surface: #24191b;
+  --color-on-surface-variant: #584142;
+  --color-inverse-surface: #3a2d2f;
+  --color-inverse-on-surface: #ffecee;
+  --color-outline: #8c7071;
+  --color-outline-variant: #e0bfbf;
+  --color-surface-tint: #af2b41;
+  --color-primary: #ac283e;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #ce4255;
+  --color-on-primary-container: #fffbff;
+  --color-inverse-primary: #ffb2b6;
+  --color-secondary: #8f4a4f;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #fea7ac;
+  --color-on-secondary-container: #79393f;
+  --color-tertiary: #79550c;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #956e25;
+  --color-on-tertiary-container: #fffbff;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  --color-primary-fixed: #ffdadb;
+  --color-primary-fixed-dim: #ffb2b6;
+  --color-on-primary-fixed: #40000d;
+  --color-on-primary-fixed-variant: #8e0e2b;
+  --color-secondary-fixed: #ffdadb;
+  --color-secondary-fixed-dim: #ffb2b6;
+  --color-on-secondary-fixed: #3b0810;
+  --color-on-secondary-fixed-variant: #723339;
+  --color-tertiary-fixed: #ffdeab;
+  --color-tertiary-fixed-dim: #efbf6e;
+  --color-on-tertiary-fixed: #271900;
+  --color-on-tertiary-fixed-variant: #5f4100;
+  --color-background: #fff8f7;
+  --color-on-background: #24191b;
+  --color-surface-variant: #f2dde0;
+  --color-primary-dark: #b33648;
+  --color-surface-canvas: #fef8f9;
+  --color-surface-soft: #fff3f4;
+  --color-surface-card: #ffffff;
+  --color-mint-soft: #c6e9c8;
+  --color-mint-vibrant: #61a07d;
+  --color-brown-earth: #5d300e;
+  --color-text-muted: #7a6b6e;
+  --color-text-faint: #a99a9d;
+  --color-hairline: rgba(93, 48, 14, 0.08);
+
+  /* ---- tipografi ölçeği ---- */
+  --text-display-xl: 44px;
+  --text-display-xl--line-height: 52px;
+  --text-display-xl--letter-spacing: -0.03em;
+  --text-display-xl--font-weight: 800;
+
+  --text-display-xl-mobile: 32px;
+  --text-display-xl-mobile--line-height: 38px;
+  --text-display-xl-mobile--letter-spacing: -0.02em;
+  --text-display-xl-mobile--font-weight: 800;
+
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 40px;
+  --text-headline-lg--letter-spacing: -0.02em;
+  --text-headline-lg--font-weight: 800;
+
+  --text-headline-lg-mobile: 26px;
+  --text-headline-lg-mobile--line-height: 32px;
+  --text-headline-lg-mobile--letter-spacing: -0.02em;
+  --text-headline-lg-mobile--font-weight: 800;
+
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 30px;
+  --text-headline-md--letter-spacing: -0.015em;
+  --text-headline-md--font-weight: 700;
+
+  --text-headline-sm: 18px;
+  --text-headline-sm--line-height: 24px;
+  --text-headline-sm--letter-spacing: -0.01em;
+  --text-headline-sm--font-weight: 700;
+
+  --text-body-lg: 17px;
+  --text-body-lg--line-height: 26px;
+  --text-body-lg--font-weight: 400;
+
+  --text-body-base: 15px;
+  --text-body-base--line-height: 24px;
+  --text-body-base--font-weight: 400;
+
+  --text-body-medium: 15px;
+  --text-body-medium--line-height: 24px;
+  --text-body-medium--font-weight: 500;
+
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 20px;
+  --text-body-sm--font-weight: 400;
+
+  --text-label-eyebrow: 11px;
+  --text-label-eyebrow--line-height: 16px;
+  --text-label-eyebrow--letter-spacing: 0.08em;
+  --text-label-eyebrow--font-weight: 700;
+
+  --text-label-button: 15px;
+  --text-label-button--line-height: 20px;
+  --text-label-button--letter-spacing: -0.01em;
+  --text-label-button--font-weight: 700;
+
+  --text-label-tab: 13px;
+  --text-label-tab--line-height: 18px;
+  --text-label-tab--letter-spacing: 0.01em;
+  --text-label-tab--font-weight: 600;
+
+  /* ---- boşluk ölçeği ---- */
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 0.75rem;
+  --spacing-space-lg: 1rem;
+  --spacing-space-xl: 1.5rem;
+  --spacing-space-2xl: 2rem;
+  --spacing-space-3xl: 3rem;
+  --spacing-gutter: 1.5rem;
+  --spacing-gutter-desktop: 2rem;
+  --spacing-margin: 1.5rem;
+  --spacing-margin-desktop: 3rem;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pt-safe { padding-top: env(safe-area-inset-top, 0px); }

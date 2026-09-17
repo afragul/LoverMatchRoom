@@ -58,6 +58,10 @@ create table public.notes (
   couple_id  uuid not null references public.couples(id) on delete cascade,
   author_id  uuid not null references auth.users(id)     on delete cascade,
   body       text not null,
+  renk       text not null default 'pink',    -- 'pink' | 'mint' | 'yellow'
+  kategori   text not null default 'sevgi',   -- 'sevgi' | 'plan' | 'surpriz'
+  pinli      boolean not null default false,
+  begenenler jsonb not null default '[]'::jsonb,  -- beğenen user_id'lerin dizisi
   created_at timestamptz not null default now()
 );
 
@@ -125,6 +129,30 @@ create table public.bilirmisin_tur (
   tahmin         text,
   tahmin_eden_id uuid references auth.users(id),
   updated_at     timestamptz not null default now()
+);
+
+-- OYUN SONUÇLARI: her biten XOX/Duello/CizBil turunun sonucu — istatistik için
+-- append-only log (BilirMisin'de kazanan kavramı olmadığı için burada yok)
+create table public.oyun_sonuclari (
+  id         uuid primary key default gen_random_uuid(),
+  couple_id  uuid not null references public.couples(id) on delete cascade,
+  oyun       text not null,       -- 'xox' | 'duello' | 'cizbil'
+  kazanan_id uuid references auth.users(id),  -- null = berabere
+  created_at timestamptz not null default now()
+);
+
+-- ANILAR: fotoğraf/hikaye arşivi
+create table public.anilar (
+  id           uuid primary key default gen_random_uuid(),
+  couple_id    uuid not null references public.couples(id) on delete cascade,
+  author_id    uuid not null references auth.users(id)     on delete cascade,
+  baslik       text not null,
+  hikaye       text,
+  tarih        date not null,
+  kategori     text not null default 'ozel',  -- 'ozel' | 'tatil' | 'yildonumu'
+  fotograf_url text,
+  favori       boolean not null default false,
+  created_at   timestamptz not null default now()
 );
 
 
@@ -358,6 +386,8 @@ alter table public.duello_games   enable row level security;
 alter table public.cizbil_games   enable row level security;
 alter table public.bilirmisin_profil enable row level security;
 alter table public.bilirmisin_tur    enable row level security;
+alter table public.oyun_sonuclari    enable row level security;
+alter table public.anilar            enable row level security;
 
 -- PROFILES: kendi profilini + partnerinin profilini gör
 create policy "read own or partner profile"
@@ -402,6 +432,12 @@ create policy "insert couple notes"
 create policy "delete own notes"
   on public.notes for delete
   using (author_id = auth.uid());
+
+-- renk/kategori/pin/beğeni düzenleme herkese (couple üyesine) açık —
+-- pin ve beğeni partnerin de değiştirebilmesi gereken alanlar
+create policy "update couple notes"
+  on public.notes for update
+  using (public.is_couple_member(couple_id));
 
 -- STROKES: sadece kendi couple'ının çizgileri
 create policy "read couple strokes"
@@ -486,6 +522,33 @@ create policy "update couple bilirmisin_tur"
   on public.bilirmisin_tur for update
   using (public.is_couple_member(couple_id));
 
+-- OYUN_SONUCLARI: append-only log, sadece couple içi okuma/yazma
+create policy "read couple oyun_sonuclari"
+  on public.oyun_sonuclari for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple oyun_sonuclari"
+  on public.oyun_sonuclari for insert
+  with check (public.is_couple_member(couple_id));
+
+-- ANILAR: couple içi okuma, yazan kendi anısını düzenler/siler,
+-- favori işaretleme partnerin de yapabilmesi için update couple-scoped
+create policy "read couple anilar"
+  on public.anilar for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple anilar"
+  on public.anilar for insert
+  with check (public.is_couple_member(couple_id) and author_id = auth.uid());
+
+create policy "update couple anilar"
+  on public.anilar for update
+  using (public.is_couple_member(couple_id));
+
+create policy "delete own anilar"
+  on public.anilar for delete
+  using (author_id = auth.uid());
+
 
 -- ---------------------------------------------------------------------
 -- 6) REALTIME (anlık senkron için)
@@ -497,3 +560,35 @@ alter publication supabase_realtime add table public.duello_games;
 alter publication supabase_realtime add table public.cizbil_games;
 alter publication supabase_realtime add table public.bilirmisin_profil;
 alter publication supabase_realtime add table public.bilirmisin_tur;
+alter publication supabase_realtime add table public.oyun_sonuclari;
+alter publication supabase_realtime add table public.anilar;
+
+
+-- ---------------------------------------------------------------------
+-- 7) STORAGE (anı fotoğrafları)
+-- ---------------------------------------------------------------------
+
+-- Public-read bucket: fotoğraflar {couple_id}/{dosya} yolunda saklanır.
+-- Public okuma basitlik için tercih edildi (imzalı URL süresi dolma
+-- derdi olmasın); yazma sadece couple üyeleriyle path üzerinden kısıtlı.
+insert into storage.buckets (id, name, public)
+values ('anilar', 'anilar', true)
+on conflict (id) do nothing;
+
+create policy "read anilar photos"
+  on storage.objects for select
+  using (bucket_id = 'anilar');
+
+create policy "upload own couple anilar photos"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'anilar'
+    and public.is_couple_member((storage.foldername(name))[1]::uuid)
+  );
+
+create policy "delete own couple anilar photos"
+  on storage.objects for delete
+  using (
+    bucket_id = 'anilar'
+    and public.is_couple_member((storage.foldername(name))[1]::uuid)
+  );

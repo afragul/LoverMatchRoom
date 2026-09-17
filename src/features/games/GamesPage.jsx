@@ -1,97 +1,114 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
 import { useCouple } from '../../context/CoupleContext';
 
 const OYUNLAR = [
-  {
-    ad: 'XOX',
-    alt: 'Üç taşı yan yana getir',
-    isaret: '⌗',
-    ton: 'var(--soft-pink)',
-    hazir: true,
-    yol: '/oyunlar/xox',
-  },
-  {
-    ad: 'Kelime Düellosu',
-    alt: 'Aynı harflerden kim daha çok kelime çıkarır',
-    isaret: 'Aa',
-    ton: 'var(--accent)',
-    hazir: true,
-    yol: '/oyunlar/duello',
-  },
-  {
-    ad: 'Çiz ve Tahmin Et',
-    alt: 'Biri çizer, diğeri bilir',
-    isaret: '✎',
-    ton: 'var(--mint)',
-    hazir: true,
-    yol: '/oyunlar/cizbil',
-  },
-  {
-    ad: 'Bunu Bilir misin',
-    alt: 'Partnerin hakkında sorular',
-    isaret: '?',
-    ton: 'var(--surface-soft)',
-    hazir: true,
-    yol: '/oyunlar/bilirmisin',
-  },
+  { ad: 'XOX', alt: 'Üç taşı yan yana getir', ikon: 'favorite', ton: 'bg-secondary-fixed text-primary', yol: '/oyunlar/xox' },
+  { ad: 'Kelime Düellosu', alt: 'Aynı harflerden kim daha çok kelime çıkarır', ikon: 'spellcheck', ton: 'bg-tertiary-fixed text-brown-earth', yol: '/oyunlar/duello' },
+  { ad: 'Çiz ve Tahmin Et', alt: 'Biri çizer, diğeri bilir', ikon: 'draw', ton: 'bg-mint-soft text-mint-vibrant', yol: '/oyunlar/cizbil' },
+  { ad: 'Bunu Bilir misin', alt: 'Partnerin hakkında sorular', ikon: 'quiz', ton: 'bg-surface-soft text-primary', yol: '/oyunlar/bilirmisin' },
 ];
+
+const OYUN_ADLARI = { xox: 'XOX', duello: 'Kelime Düellosu', cizbil: 'Çiz ve Tahmin Et' };
 
 export default function GamesPage() {
   const navigate = useNavigate();
-  const { partnerAktif, partner } = useCouple();
+  const { user } = useAuth();
+  const { coupleId, partnerAktif, partner } = useCouple();
+
+  const [sonuclar, setSonuclar] = useState([]);
+  const [yukleniyor, setYukleniyor] = useState(true);
+
+  useEffect(() => {
+    if (!coupleId) return;
+    let iptal = false;
+
+    supabase
+      .from('oyun_sonuclari')
+      .select('*')
+      .eq('couple_id', coupleId)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (iptal) return;
+        setSonuclar(data ?? []);
+        setYukleniyor(false);
+      });
+
+    return () => { iptal = true; };
+  }, [coupleId]);
+
+  const benimSkorum = sonuclar.filter((s) => s.kazanan_id === user.id).length;
+  const partnerSkoru = partner ? sonuclar.filter((s) => s.kazanan_id === partner.id).length : 0;
+  const toplamMac = sonuclar.length;
 
   return (
     <>
-      <header className="stack-2" style={{ marginBottom: 'var(--s5)' }}>
-        <p className="eyebrow">Oyunlar</p>
-        <h1>Sıra sende</h1>
-        <p className="muted">
+      <header className="space-y-1">
+        <p className="text-label-eyebrow text-primary uppercase tracking-widest">Oyunlar</p>
+        <h1 className="text-headline-lg-mobile text-on-surface">Çift Oyunları Lobi 🎮</h1>
+        <p className="text-body-medium text-text-muted">
           {partnerAktif
             ? `${partner?.display_name || 'Partnerin'} şu an burada. İyi zamanlama.`
-            : 'Hepsi sıra tabanlı. Aynı anda burada olmanız gerekmiyor.'}
+            : 'Hepsi sıra tabanlı, aynı anda burada olmanız gerekmiyor.'}
         </p>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
+      {toplamMac > 0 && (
+        <section className="bg-surface-card rounded-2xl p-space-lg shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-headline-sm text-on-surface">Sen</span>
+              <span className="text-label-tab text-text-muted">{benimSkorum} Galibiyet</span>
+            </div>
+            <div className="flex flex-col items-center px-space-xs">
+              <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-md">
+                <span className="text-headline-sm italic">VS</span>
+              </div>
+              <div className="mt-2 px-2 py-0.5 rounded-full bg-surface-container text-brown-earth text-label-eyebrow whitespace-nowrap">
+                {toplamMac} Toplam Maç
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-headline-sm text-primary">{partner?.display_name || 'Partnerin'}</span>
+              <span className="text-label-tab text-primary font-bold">{partnerSkoru} Galibiyet</span>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <div className="grid grid-cols-2 gap-space-md">
         {OYUNLAR.map((o) => (
           <button
             key={o.ad}
-            className="card card-tap"
-            disabled={!o.hazir}
-            onClick={() => o.hazir && navigate(o.yol)}
-            style={{
-              padding: 'var(--s4)',
-              minHeight: 160,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              opacity: o.hazir ? 1 : 0.72,
-              cursor: o.hazir ? 'pointer' : 'default',
-            }}
+            onClick={() => navigate(o.yol)}
+            className="bg-surface-card rounded-xl p-space-md shadow-sm hover:shadow-md transition-all flex flex-col items-start text-left min-h-[150px]"
           >
-            <div
-              style={{
-                width: 44, height: 44, borderRadius: 'var(--r-sm)',
-                background: o.ton, color: 'var(--brown)',
-                display: 'grid', placeItems: 'center',
-                fontSize: 19, fontWeight: 700,
-                marginBottom: 'var(--s3)',
-              }}
-            >
-              {o.isaret}
+            <div className={'w-10 h-10 rounded-xl flex items-center justify-center mb-space-sm ' + o.ton}>
+              <span className="material-symbols-outlined text-[20px]">{o.ikon}</span>
             </div>
-
-            <h3>{o.ad}</h3>
-            <p className="faint" style={{ marginTop: 2, flex: 1 }}>{o.alt}</p>
-
-            {!o.hazir && (
-              <span className="badge badge--away" style={{ marginTop: 'var(--s2)' }}>
-                Yakında
-              </span>
-            )}
+            <h3 className="text-headline-sm text-on-surface">{o.ad}</h3>
+            <p className="text-body-sm text-text-muted mt-1 flex-1">{o.alt}</p>
           </button>
         ))}
       </div>
+
+      {!yukleniyor && sonuclar.length > 0 && (
+        <section className="bg-surface-card rounded-xl p-space-lg shadow-sm space-y-space-sm">
+          <h2 className="text-headline-sm text-on-surface">Son Oyun Sonuçları</h2>
+          <div className="space-y-space-xs">
+            {sonuclar.slice(0, 5).map((s) => (
+              <div key={s.id} className="flex items-center justify-between text-body-sm border-t border-hairline pt-space-xs first:border-0 first:pt-0">
+                <span className="text-on-surface">{OYUN_ADLARI[s.oyun] ?? s.oyun}</span>
+                <span className="text-text-muted">
+                  {s.kazanan_id ? (s.kazanan_id === user.id ? 'Sen kazandın' : `${partner?.display_name || 'Partnerin'} kazandı`) : 'Berabere'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </>
   );
 }

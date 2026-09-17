@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCouple } from '../../context/CoupleContext';
-import { IconBack } from '../../components/Icons';
 
 const KELIME_BANKASI = [
   'KEDİ', 'KÖPEK', 'GÜNEŞ', 'EV', 'ARABA', 'AĞAÇ', 'BALIK', 'KALP', 'ÇİÇEK', 'BULUT',
@@ -176,7 +175,11 @@ export default function CizBilPage() {
             .eq('couple_id', coupleId)
             .select()
             .single()
-            .then(({ data, error }) => { if (!error) setOyun(data); });
+            .then(({ data, error }) => {
+              if (error) return;
+              setOyun(data);
+              supabase.from('oyun_sonuclari').insert({ couple_id: coupleId, oyun: 'cizbil', kazanan_id: payload.kim });
+            });
         }
       })
       .on('postgres_changes',
@@ -301,29 +304,32 @@ export default function CizBilPage() {
 
   return (
     <>
-      <header className="row" style={{ marginBottom: 'var(--s5)', gap: 'var(--s2)' }}>
+      <header className="flex items-center gap-space-sm">
         <button
-          className="btn btn--ghost"
           onClick={() => navigate('/oyunlar')}
-          style={{ width: 42, height: 42, padding: 0, display: 'grid', placeItems: 'center' }}
           aria-label="Oyunlara dön"
+          className="w-10 h-10 rounded-full bg-surface-card shadow-sm flex items-center justify-center text-on-surface-variant"
         >
-          <IconBack />
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
         </button>
         <div>
-          <p className="eyebrow">Çiz ve Tahmin Et</p>
-          <h1>Sırada kim çizecek?</h1>
+          <p className="text-label-eyebrow text-primary uppercase tracking-widest">Çiz ve Tahmin Et</p>
+          <h1 className="text-headline-md text-on-surface">Sırada kim çizecek?</h1>
         </div>
       </header>
 
-      {yukleniyor && <p className="muted">Yükleniyor…</p>}
+      {yukleniyor && <p className="text-body-sm text-text-muted">Yükleniyor…</p>}
 
       {!yukleniyor && secenekler && (
-        <div className="card" style={{ textAlign: 'center', padding: 'var(--s6) var(--s5)' }}>
-          <h3>Hangi kelimeyi çizmek istersin?</h3>
-          <div className="stack" style={{ gap: 'var(--s2)', marginTop: 'var(--s4)' }}>
+        <div className="bg-surface-card rounded-xl p-space-xl text-center shadow-sm">
+          <h3 className="text-headline-sm text-on-surface">Hangi kelimeyi çizmek istersin?</h3>
+          <div className="flex flex-col gap-space-sm mt-space-md">
             {secenekler.map((k) => (
-              <button key={k} className="btn btn--soft btn--block" onClick={() => kelimeSec(k)}>
+              <button
+                key={k}
+                onClick={() => kelimeSec(k)}
+                className="w-full py-2.5 rounded-full bg-surface-soft text-primary text-label-button"
+              >
                 {k}
               </button>
             ))}
@@ -332,12 +338,12 @@ export default function CizBilPage() {
       )}
 
       {!yukleniyor && !secenekler && (!oyun || turBitti) && (
-        <div className="card" style={{ textAlign: 'center', padding: 'var(--s7) var(--s5)' }}>
+        <div className="bg-surface-card rounded-xl p-space-2xl text-center shadow-sm">
           {oyun && turBitti && (
             <>
-              <p className="eyebrow">Kelime</p>
-              <h3 style={{ marginBottom: 'var(--s2)' }}>{oyun.kelime || '(kayboldu)'}</h3>
-              <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
+              <p className="text-label-eyebrow text-primary uppercase">Kelime</p>
+              <h3 className="text-headline-sm text-on-surface mt-1 mb-space-sm">{oyun.kelime || '(kayboldu)'}</h3>
+              <p className="text-body-sm text-text-muted mb-space-md">
                 {oyun.durum === 'bulundu'
                   ? (oyun.cizen_id === user.id
                       ? `${partner?.display_name || 'Partnerin'} buldu!`
@@ -347,11 +353,14 @@ export default function CizBilPage() {
             </>
           )}
           {!oyun && (
-            <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
+            <p className="text-body-sm text-text-muted mb-space-md">
               Biri çizer, diğeri tahmin eder. Kelime karşı tarafa hiç gösterilmez.
             </p>
           )}
-          <button className="btn btn--primary" onClick={() => setSecenekler(rastgele3Kelime())}>
+          <button
+            onClick={() => setSecenekler(rastgele3Kelime())}
+            className="px-space-xl py-2.5 rounded-full bg-primary text-on-primary text-label-button shadow-md"
+          >
             Ben çizeyim
           </button>
         </div>
@@ -359,7 +368,7 @@ export default function CizBilPage() {
 
       {!secenekler && oyun && !turBitti && (
         <>
-          <p className="muted" style={{ marginBottom: 'var(--s4)' }}>
+          <p className="text-body-sm text-text-muted">
             {benimCizenOldugum
               ? (kelimemGizli
                   ? `Gizli kelimen: ${kelimemGizli}`
@@ -367,14 +376,11 @@ export default function CizBilPage() {
               : `${partner?.display_name || 'Partnerin'} çiziyor, tahmin et.`}
           </p>
 
-          <div ref={sarmalRef} style={{ width: '100%' }}>
+          <div ref={sarmalRef} className="w-full">
             <canvas
               ref={canvasRef}
-              style={{
-                width: '100%', display: 'block', borderRadius: 'var(--r-md)',
-                background: 'var(--surface)', boxShadow: 'var(--shadow-sm)',
-                touchAction: 'none', cursor: benimCizenOldugum ? 'crosshair' : 'default',
-              }}
+              className="w-full block rounded-xl bg-surface shadow-sm touch-none"
+              style={{ cursor: benimCizenOldugum ? 'crosshair' : 'default' }}
               onPointerDown={basla}
               onPointerMove={surukle}
               onPointerUp={bitirCizgi}
@@ -383,43 +389,44 @@ export default function CizBilPage() {
           </div>
 
           {benimCizenOldugum && (
-            <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)', justifyContent: 'space-between' }}>
-              <div className="row" style={{ gap: 'var(--s1)' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
                 {RENKLER.map((r) => (
                   <button
                     key={r}
                     onClick={() => setRenk(r)}
                     aria-label={`Renk ${r}`}
-                    style={{
-                      width: 28, height: 28, borderRadius: '50%', background: r,
-                      border: renk === r ? '2px solid var(--text)' : '2px solid transparent',
-                      cursor: 'pointer',
-                    }}
+                    className="w-7 h-7 rounded-full"
+                    style={{ background: r, boxShadow: renk === r ? '0 0 0 2px var(--color-surface-card), 0 0 0 4px var(--color-primary)' : 'none' }}
                   />
                 ))}
               </div>
-              <button className="btn btn--ghost btn--sm" onClick={vazgec}>Pes et</button>
+              <button onClick={vazgec} className="px-space-md py-1.5 rounded-full bg-surface-card text-on-surface-variant text-label-tab shadow-sm">
+                Pes et
+              </button>
             </div>
           )}
 
           {!benimCizenOldugum && (
-            <div className="row" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
+            <div className="flex items-center gap-space-sm">
               <input
                 placeholder="Tahminini yaz…"
                 value={girdi}
                 onChange={(e) => setGirdi(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && tahminGonder()}
-                style={{ flex: 1 }}
+                className="flex-1 h-11 px-space-md rounded-lg bg-surface-card text-on-surface outline-none shadow-sm"
               />
-              <button className="btn btn--soft" onClick={tahminGonder}>Gönder</button>
+              <button onClick={tahminGonder} className="px-space-lg h-11 rounded-lg bg-surface-soft text-primary text-label-button">
+                Gönder
+              </button>
             </div>
           )}
 
           {tahminler.length > 0 && (
-            <div className="stack" style={{ gap: 'var(--s1)', marginTop: 'var(--s4)' }}>
+            <div className="space-y-1">
               {tahminler.map((t, i) => (
-                <p key={i} className="faint">
-                  <strong>{t.kim === user.id ? 'Sen' : (partner?.display_name || 'Partnerin')}:</strong> {t.metin}
+                <p key={i} className="text-text-faint text-body-sm">
+                  <strong className="text-on-surface-variant">{t.kim === user.id ? 'Sen' : (partner?.display_name || 'Partnerin')}:</strong> {t.metin}
                 </p>
               ))}
             </div>
@@ -427,11 +434,7 @@ export default function CizBilPage() {
         </>
       )}
 
-      {hata && (
-        <p style={{ color: 'var(--primary)', fontSize: 13, fontWeight: 600, marginTop: 'var(--s4)' }}>
-          {hata}
-        </p>
-      )}
+      {hata && <p className="text-primary text-body-sm font-semibold">{hata}</p>}
     </>
   );
 }

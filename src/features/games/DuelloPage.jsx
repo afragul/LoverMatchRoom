@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCouple } from '../../context/CoupleContext';
-import { IconBack, IconCheck } from '../../components/Icons';
 
 const HARF_SAYISI = 9;
 const SÜRE_SN = 90;
@@ -199,109 +198,109 @@ export default function DuelloPage() {
     }
   }
 
+  const benKucukMuyum = partner ? user.id < partner.id : true;
+  const loglananRef = useRef(null);
+
+  useEffect(() => {
+    if (!ikisiDeGonderdiMi || !benKucukMuyum || !oyun) return;
+    if (loglananRef.current === oyun.bitis) return;
+    loglananRef.current = oyun.bitis;
+
+    supabase.from('oyun_sonuclari').insert({
+      couple_id: coupleId,
+      oyun: 'duello',
+      kazanan_id: sonuc === 'berabere' ? null : (sonuc === 'ben' ? user.id : partner?.id),
+    });
+  }, [ikisiDeGonderdiMi, benKucukMuyum, sonuc, oyun, coupleId, user.id, partner]);
+
   const dk = String(Math.floor(kalan / 60)).padStart(2, '0');
   const sn = String(kalan % 60).padStart(2, '0');
 
   return (
     <>
-      <header className="row" style={{ marginBottom: 'var(--s5)', gap: 'var(--s2)' }}>
+      <header className="flex items-center gap-space-sm">
         <button
-          className="btn btn--ghost"
           onClick={() => navigate('/oyunlar')}
-          style={{ width: 42, height: 42, padding: 0, display: 'grid', placeItems: 'center' }}
           aria-label="Oyunlara dön"
+          className="w-10 h-10 rounded-full bg-surface-card shadow-sm flex items-center justify-center text-on-surface-variant"
         >
-          <IconBack />
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
         </button>
         <div>
-          <p className="eyebrow">Kelime Düellosu</p>
-          <h1>Aynı harfler</h1>
+          <p className="text-label-eyebrow text-primary uppercase tracking-widest">Kelime Düellosu</p>
+          <h1 className="text-headline-md text-on-surface">Aynı harfler</h1>
         </div>
       </header>
 
-      {yukleniyor && <p className="muted">Yükleniyor…</p>}
+      {yukleniyor && <p className="text-body-sm text-text-muted">Yükleniyor…</p>}
 
       {!yukleniyor && !oyun && (
-        <div className="card" style={{ textAlign: 'center', padding: 'var(--s7) var(--s5)' }}>
-          <h3>Henüz tur yok</h3>
-          <p className="muted" style={{ marginTop: 'var(--s2)', marginBottom: 'var(--s4)' }}>
+        <div className="bg-surface-card rounded-xl p-space-2xl text-center shadow-sm">
+          <h3 className="text-headline-sm text-on-surface">Henüz tur yok</h3>
+          <p className="text-body-sm text-text-muted mt-2 mb-space-md">
             {HARF_SAYISI} harf, {SÜRE_SN} saniye. En çok kelimeyi kim yazar?
           </p>
-          <button className="btn btn--primary" onClick={baslat}>Turu başlat</button>
+          <button onClick={baslat} className="px-space-xl py-2.5 rounded-full bg-primary text-on-primary text-label-button shadow-md">
+            Turu başlat
+          </button>
         </div>
       )}
 
       {oyun && !ikisiDeGonderdiMi && (
         <>
-          <div className="row" style={{ justifyContent: 'space-between', marginBottom: 'var(--s4)' }}>
-            <p className="muted">
+          <div className="flex items-center justify-between">
+            <p className="text-body-sm text-text-muted">
               {gonderildiMi
                 ? `${partner?.display_name || 'Partnerin'} yazıyor… (${partnerSayac} kelime)`
                 : 'Elindeki harflerden kelime yaz.'}
             </p>
             {!gonderildiMi && (
-              <span style={{ fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
-                {dk}:{sn}
-              </span>
+              <span className="font-extrabold" style={{ fontVariantNumeric: 'tabular-nums' }}>{dk}:{sn}</span>
             )}
           </div>
 
-          <div
-            style={{
-              display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)',
-              justifyContent: 'center', marginBottom: 'var(--s5)',
-            }}
-          >
+          <div className="flex flex-wrap gap-space-sm justify-center">
             {oyun.harfler.map((h, i) => (
-              <div
-                key={i}
-                className="card"
-                style={{
-                  width: 40, height: 40, display: 'grid', placeItems: 'center',
-                  fontWeight: 800, fontSize: 18,
-                }}
-              >
+              <div key={i} className="w-10 h-10 rounded-lg bg-surface-card shadow-sm grid place-items-center font-extrabold text-lg">
                 {h}
               </div>
             ))}
           </div>
 
           {!gonderildiMi && (
-            <div className="row" style={{ gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
+            <div className="flex items-center gap-space-sm">
               <input
                 placeholder="Kelime yaz…"
                 value={girdi}
                 onChange={(e) => setGirdi(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && kelimeEkle()}
-                style={{ flex: 1 }}
+                className="flex-1 h-11 px-space-md rounded-lg bg-surface-card text-on-surface outline-none shadow-sm"
               />
-              <button className="btn btn--soft" onClick={kelimeEkle}>Ekle</button>
+              <button onClick={kelimeEkle} className="px-space-lg h-11 rounded-lg bg-surface-soft text-primary text-label-button">
+                Ekle
+              </button>
             </div>
           )}
 
-          {hata && (
-            <p style={{ color: 'var(--primary)', fontSize: 13, fontWeight: 600, marginBottom: 'var(--s3)' }}>
-              {hata}
-            </p>
-          )}
+          {hata && <p className="text-primary text-body-sm font-semibold">{hata}</p>}
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
+          <div className="flex flex-wrap gap-space-xs">
             {kelimelerim.map((k) => (
-              <span key={k} className="badge">{k}</span>
+              <span key={k} className="px-2.5 py-1 rounded-full bg-surface-card text-body-sm text-on-surface shadow-sm">{k}</span>
             ))}
           </div>
 
           {!gonderildiMi && (
-            <div style={{ textAlign: 'center', marginTop: 'var(--s5)' }}>
-              <button className="btn btn--ghost btn--sm" onClick={gonder}>
+            <div className="text-center">
+              <button onClick={gonder} className="px-space-lg py-2 rounded-full bg-surface-card text-on-surface-variant text-label-tab shadow-sm">
                 Bitir ({kelimelerim.length} kelime)
               </button>
             </div>
           )}
 
           {gonderildiMi && (
-            <p className="faint" style={{ marginTop: 'var(--s4)', textAlign: 'center' }}>
-              <IconCheck style={{ width: 14, height: 14, verticalAlign: -2 }} /> Gönderildi
+            <p className="text-text-faint text-body-sm text-center flex items-center justify-center gap-1">
+              <span className="material-symbols-outlined text-[16px] text-mint-vibrant">check_circle</span> Gönderildi
             </p>
           )}
         </>
@@ -309,36 +308,38 @@ export default function DuelloPage() {
 
       {ikisiDeGonderdiMi && (
         <>
-          <div className="card" style={{ textAlign: 'center', padding: 'var(--s5)', marginBottom: 'var(--s5)' }}>
-            <h3>
+          <div className="bg-surface-card rounded-xl p-space-lg text-center shadow-sm">
+            <h3 className="text-headline-sm text-on-surface">
               {sonuc === 'berabere' && 'Berabere.'}
               {sonuc === 'ben' && 'Kazandın!'}
               {sonuc === 'partner' && `${partner?.display_name || 'Partnerin'} kazandı.`}
             </h3>
-            <p className="faint" style={{ marginTop: 'var(--s2)' }}>
+            <p className="text-text-faint text-body-sm mt-2">
               Kelimelerin gerçek olup olmadığını kontrol etmiyoruz — bunu ikinize bırakıyoruz.
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
-            <div className="card">
-              <h3>Sen</h3>
-              <p className="faint" style={{ marginBottom: 'var(--s3)' }}>{benimKelimelerim.length} kelime</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s1)' }}>
-                {benimKelimelerim.map((k) => <span key={k} className="badge">{k}</span>)}
+          <div className="grid grid-cols-2 gap-space-sm">
+            <div className="bg-surface-card rounded-xl p-space-md shadow-sm">
+              <h3 className="text-headline-sm text-on-surface">Sen</h3>
+              <p className="text-text-faint text-body-sm mb-space-sm">{benimKelimelerim.length} kelime</p>
+              <div className="flex flex-wrap gap-1">
+                {benimKelimelerim.map((k) => <span key={k} className="px-2 py-0.5 rounded-full bg-surface-soft text-[13px]">{k}</span>)}
               </div>
             </div>
-            <div className="card">
-              <h3>{partner?.display_name || 'Partnerin'}</h3>
-              <p className="faint" style={{ marginBottom: 'var(--s3)' }}>{partnerKelimeleri.length} kelime</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s1)' }}>
-                {partnerKelimeleri.map((k) => <span key={k} className="badge">{k}</span>)}
+            <div className="bg-surface-card rounded-xl p-space-md shadow-sm">
+              <h3 className="text-headline-sm text-on-surface">{partner?.display_name || 'Partnerin'}</h3>
+              <p className="text-text-faint text-body-sm mb-space-sm">{partnerKelimeleri.length} kelime</p>
+              <div className="flex flex-wrap gap-1">
+                {partnerKelimeleri.map((k) => <span key={k} className="px-2 py-0.5 rounded-full bg-surface-soft text-[13px]">{k}</span>)}
               </div>
             </div>
           </div>
 
-          <div style={{ textAlign: 'center', marginTop: 'var(--s5)' }}>
-            <button className="btn btn--primary" onClick={baslat}>Yeni tur</button>
+          <div className="text-center">
+            <button onClick={baslat} className="px-space-xl py-2.5 rounded-full bg-primary text-on-primary text-label-button shadow-md">
+              Yeni tur
+            </button>
           </div>
         </>
       )}

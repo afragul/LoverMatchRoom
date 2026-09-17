@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCouple } from '../../context/CoupleContext';
-import { IconBack } from '../../components/Icons';
 
 const BOS_TAHTA = [null, null, null, null, null, null, null, null, null];
 
@@ -104,7 +103,12 @@ export default function XoxPage() {
       .update(guncel)
       .eq('couple_id', coupleId);
 
-    if (error) setHata('Hamle kaydedilemedi.');
+    if (error) { setHata('Hamle kaydedilemedi.'); return; }
+
+    if (kazanan) {
+      const kazananId = kazanan === 'berabere' ? null : (kazanan === benimIsaret ? user.id : partner?.id);
+      await supabase.from('oyun_sonuclari').insert({ couple_id: coupleId, oyun: 'xox', kazanan_id: kazananId });
+    }
   }
 
   const benimIsaret = oyun && oyun.x_user_id === user.id ? 'X' : 'O';
@@ -119,61 +123,46 @@ export default function XoxPage() {
 
   return (
     <>
-      <header className="row" style={{ marginBottom: 'var(--s5)', gap: 'var(--s2)' }}>
+      <header className="flex items-center gap-space-sm">
         <button
-          className="btn btn--ghost"
           onClick={() => navigate('/oyunlar')}
-          style={{ width: 42, height: 42, padding: 0, display: 'grid', placeItems: 'center' }}
           aria-label="Oyunlara dön"
+          className="w-10 h-10 rounded-full bg-surface-card shadow-sm flex items-center justify-center text-on-surface-variant"
         >
-          <IconBack />
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
         </button>
         <div>
-          <p className="eyebrow">XOX</p>
-          <h1>Üç taşı</h1>
+          <p className="text-label-eyebrow text-primary uppercase tracking-widest">XOX</p>
+          <h1 className="text-headline-md text-on-surface">Üç taşı</h1>
         </div>
       </header>
 
-      {yukleniyor && <p className="muted">Yükleniyor…</p>}
+      {yukleniyor && <p className="text-body-sm text-text-muted">Yükleniyor…</p>}
 
       {!yukleniyor && !oyun && (
-        <div className="card" style={{ textAlign: 'center', padding: 'var(--s7) var(--s5)' }}>
-          <h3>Henüz oyun yok</h3>
-          <p className="muted" style={{ marginTop: 'var(--s2)', marginBottom: 'var(--s4)' }}>
+        <div className="bg-surface-card rounded-xl p-space-2xl text-center shadow-sm">
+          <h3 className="text-headline-sm text-on-surface">Henüz oyun yok</h3>
+          <p className="text-body-sm text-text-muted mt-2 mb-space-md">
             Başlatan kişi X olur, ilk hamle onundur.
           </p>
-          <button className="btn btn--primary" onClick={baslat}>Oyunu başlat</button>
+          <button onClick={baslat} className="px-space-xl py-2.5 rounded-full bg-primary text-on-primary text-label-button shadow-md">
+            Oyunu başlat
+          </button>
         </div>
       )}
 
       {oyun && (
         <>
-          <p className="muted" style={{ marginBottom: 'var(--s4)' }}>{durumMetni}</p>
+          <p className="text-body-sm text-text-muted">{durumMetni}</p>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 'var(--s2)',
-              maxWidth: 360,
-              margin: '0 auto',
-            }}
-          >
+          <div className="grid grid-cols-3 gap-space-sm max-w-[320px] mx-auto w-full">
             {oyun.board.map((deger, i) => (
               <button
                 key={i}
-                className="card card-tap"
                 onClick={() => hamleYap(i)}
                 disabled={!sıraBende || !!deger}
-                style={{
-                  aspectRatio: '1 / 1',
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontSize: 32,
-                  fontWeight: 800,
-                  color: deger === 'X' ? 'var(--primary)' : 'var(--accent)',
-                  cursor: sıraBende && !deger ? 'pointer' : 'default',
-                }}
+                className="aspect-square rounded-xl bg-surface-card shadow-sm grid place-items-center text-[32px] font-extrabold"
+                style={{ color: deger === 'X' ? 'var(--color-primary)' : 'var(--color-tertiary)' }}
               >
                 {deger}
               </button>
@@ -181,18 +170,16 @@ export default function XoxPage() {
           </div>
 
           {oyun.kazanan && (
-            <div style={{ textAlign: 'center', marginTop: 'var(--s5)' }}>
-              <button className="btn btn--primary" onClick={baslat}>Yeniden başlat</button>
+            <div className="text-center">
+              <button onClick={baslat} className="px-space-xl py-2.5 rounded-full bg-primary text-on-primary text-label-button shadow-md">
+                Yeniden başlat
+              </button>
             </div>
           )}
         </>
       )}
 
-      {hata && (
-        <p style={{ color: 'var(--primary)', fontSize: 13, fontWeight: 600, marginTop: 'var(--s4)' }}>
-          {hata}
-        </p>
-      )}
+      {hata && <p className="text-primary text-body-sm font-semibold">{hata}</p>}
     </>
   );
 }

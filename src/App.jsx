@@ -14,6 +14,7 @@ import DuelloPage from './features/games/DuelloPage';
 import CizBilPage from './features/games/CizBilPage';
 import BilirMisinPage from './features/games/BilirMisinPage';
 import RoomPage from './features/room/RoomPage';
+import AnilarPage from './features/anilar/AnilarPage';
 
 function Yukleniyor() {
   return (
@@ -28,24 +29,6 @@ function Yukleniyor() {
       />
       <style>{`@keyframes dondur { to { transform: rotate(360deg); } }`}</style>
     </div>
-  );
-}
-
-/* Anılar henüz veri katmanına bağlı değil — boş durumu dürüstçe anlat. */
-function AnilarPage() {
-  return (
-    <>
-      <header className="stack-2" style={{ marginBottom: 'var(--s5)' }}>
-        <p className="eyebrow">Anılar</p>
-        <h1>Arşiv</h1>
-      </header>
-      <div className="card" style={{ textAlign: 'center', padding: 'var(--s7) var(--s5)' }}>
-        <h3>Henüz açılmadı</h3>
-        <p className="muted" style={{ marginTop: 'var(--s2)' }}>
-          Fotoğraf ve tarih saklama yakında burada olacak.
-        </p>
-      </div>
-    </>
   );
 }
 

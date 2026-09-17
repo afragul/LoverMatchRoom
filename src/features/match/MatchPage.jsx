@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCouple } from '../../context/CoupleContext';
-import { IconCopy, IconCheck } from '../../components/Icons';
 
 const HATA_METINLERI = {
   INVALID_CODE: 'Böyle bir kod yok. Karakterleri kontrol et.',
@@ -62,34 +61,28 @@ export default function MatchPage() {
   }
 
   return (
-    <div className="shell shell--wide" style={{ paddingTop: 'var(--s7)' }}>
-      <div className="page">
-        <header style={{ marginBottom: 'var(--s6)' }}>
-          <p className="eyebrow">Son adım</p>
-          <h1 style={{ marginTop: 'var(--s2)' }}>Odanızı kurun</h1>
-          <p className="muted" style={{ marginTop: 'var(--s3)' }}>
+    <div className="min-h-screen bg-surface px-space-md pt-space-2xl pb-space-2xl">
+      <div className="max-w-md mx-auto space-y-space-lg">
+        <header className="space-y-1 text-center">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-fixed text-primary">
+            <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
+            <span className="text-label-eyebrow uppercase tracking-widest">Birlikte Yeni Bir Başlangıç</span>
+          </div>
+          <h1 className="text-headline-lg-mobile text-on-surface pt-1">Partnerinle Odanı Birleştir</h1>
+          <p className="text-body-medium text-text-muted">
             Biriniz kod üretir, diğeri girer. Oda sadece ikinize açılır.
           </p>
         </header>
 
-        {/* sekmeler */}
-        <div
-          className="row"
-          style={{ gap: 'var(--s1)', background: 'var(--surface-soft)', padding: 4, borderRadius: 'var(--r-full)', marginBottom: 'var(--s4)' }}
-        >
+        <div className="flex items-center gap-1 bg-surface-soft p-1 rounded-full">
           {[['uret', 'Kod üret'], ['gir', 'Kodum var']].map(([deger, etiket]) => (
             <button
               key={deger}
               onClick={() => { setSekme(deger); setHata(null); }}
-              style={{
-                flex: 1, border: 'none', cursor: 'pointer',
-                padding: '10px 0', borderRadius: 'var(--r-full)',
-                fontSize: 13, fontWeight: 700,
-                background: sekme === deger ? 'var(--surface)' : 'transparent',
-                color: sekme === deger ? 'var(--primary)' : 'var(--text-muted)',
-                boxShadow: sekme === deger ? 'var(--shadow-sm)' : 'none',
-                transition: 'all 0.22s var(--ease)',
-              }}
+              className={
+                'flex-1 py-2.5 rounded-full text-label-tab transition-all ' +
+                (sekme === deger ? 'bg-surface-card text-primary shadow-sm' : 'bg-transparent text-text-muted')
+              }
             >
               {etiket}
             </button>
@@ -97,51 +90,48 @@ export default function MatchPage() {
         </div>
 
         {sekme === 'uret' ? (
-          <div className="card" style={{ textAlign: 'center', padding: 'var(--s6) var(--s5)' }}>
+          <div className="bg-surface-card rounded-2xl p-space-xl shadow-md text-center">
             {kod ? (
               <>
-                <p className="eyebrow">Davet kodun</p>
-                <p
-                  style={{
-                    fontSize: 34, fontWeight: 800, letterSpacing: '0.08em',
-                    margin: 'var(--s3) 0 var(--s4)', color: 'var(--primary)',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
+                <p className="text-label-eyebrow text-primary uppercase tracking-widest">Davet kodun</p>
+                <p className="text-headline-lg text-primary my-space-md" style={{ letterSpacing: '0.08em', fontVariantNumeric: 'tabular-nums' }}>
                   {bicimle(kod)}
                 </p>
 
-                <button className="btn btn--soft btn--block" onClick={kopyala}>
-                  {kopyalandi ? <IconCheck style={{ width: 18 }} /> : <IconCopy style={{ width: 18 }} />}
+                <button
+                  onClick={kopyala}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-surface-soft text-primary text-label-button"
+                >
+                  <span className="material-symbols-outlined text-[18px]">{kopyalandi ? 'check' : 'content_copy'}</span>
                   {kopyalandi ? 'Kopyalandı' : 'Kodu kopyala'}
                 </button>
 
-                <p className="faint" style={{ marginTop: 'var(--s4)' }}>
+                <p className="text-text-faint text-body-sm mt-space-md">
                   7 gün geçerli, tek kullanımlık. Karşı taraf kodu girdiğinde oda açılır.
                 </p>
 
-                <button className="btn btn--ghost btn--sm" style={{ marginTop: 'var(--s2)' }} onClick={kodUret} disabled={mesgul}>
+                <button onClick={kodUret} disabled={mesgul} className="text-text-muted text-label-tab mt-space-sm">
                   Yeni kod üret
                 </button>
               </>
             ) : (
               <>
-                <h3>Kodu sen üret</h3>
-                <p className="muted" style={{ margin: 'var(--s2) 0 var(--s5)' }}>
-                  Kodu partnerine ilet, o girsin.
-                </p>
-                <button className="btn btn--primary btn--block" onClick={kodUret} disabled={mesgul}>
+                <h3 className="text-headline-sm text-on-surface">Kodu sen üret</h3>
+                <p className="text-body-sm text-text-muted my-space-sm">Kodu partnerine ilet, o girsin.</p>
+                <button
+                  onClick={kodUret}
+                  disabled={mesgul}
+                  className="w-full py-3 rounded-xl bg-primary hover:bg-primary-dark disabled:opacity-60 text-on-primary text-label-button shadow-md"
+                >
                   {mesgul ? 'Üretiliyor…' : 'Kod üret'}
                 </button>
               </>
             )}
           </div>
         ) : (
-          <div className="card" style={{ padding: 'var(--s5)' }}>
-            <h3>Kodu gir</h3>
-            <p className="muted" style={{ margin: 'var(--s2) 0 var(--s4)' }}>
-              Partnerinin ürettiği 8 karakterli kodu yaz.
-            </p>
+          <div className="bg-surface-card rounded-2xl p-space-xl shadow-md">
+            <h3 className="text-headline-sm text-on-surface">Kodu gir</h3>
+            <p className="text-body-sm text-text-muted my-space-sm">Partnerinin ürettiği 8 karakterli kodu yaz.</p>
 
             <input
               value={girilen}
@@ -149,31 +139,24 @@ export default function MatchPage() {
               placeholder="K7MP-2XQ4"
               onChange={(e) => setGirilen(e.target.value.toUpperCase())}
               onKeyDown={(e) => e.key === 'Enter' && kodKullan()}
-              style={{
-                textAlign: 'center', fontSize: 22, fontWeight: 700,
-                letterSpacing: '0.12em', padding: '18px 12px',
-              }}
+              className="w-full text-center text-headline-sm font-bold rounded-xl bg-surface-soft text-on-surface outline-none py-4"
+              style={{ letterSpacing: '0.12em' }}
             />
 
             <button
-              className="btn btn--primary btn--block"
-              style={{ marginTop: 'var(--s4)' }}
               onClick={kodKullan}
               disabled={mesgul}
+              className="w-full mt-space-md py-3 rounded-xl bg-primary hover:bg-primary-dark disabled:opacity-60 text-on-primary text-label-button shadow-md"
             >
               {mesgul ? 'Kontrol ediliyor…' : 'Odaya katıl'}
             </button>
           </div>
         )}
 
-        {hata && (
-          <p style={{ color: 'var(--primary)', fontSize: 13, fontWeight: 600, textAlign: 'center', marginTop: 'var(--s4)' }}>
-            {hata}
-          </p>
-        )}
+        {hata && <p className="text-primary text-body-sm font-semibold text-center">{hata}</p>}
 
-        <div style={{ textAlign: 'center', marginTop: 'var(--s6)' }}>
-          <button className="btn btn--ghost btn--sm" onClick={signOut}>Çıkış yap</button>
+        <div className="text-center">
+          <button onClick={signOut} className="text-text-muted text-label-tab">Çıkış yap</button>
         </div>
       </div>
     </div>

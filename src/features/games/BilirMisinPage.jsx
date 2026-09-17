@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCouple } from '../../context/CoupleContext';
-import { IconBack, IconCheck } from '../../components/Icons';
 
 const SORULAR = [
   { id: 'renk',            metin: 'En sevdiğin renk?' },
@@ -183,110 +182,108 @@ export default function BilirMisinPage() {
 
   return (
     <>
-      <header className="row" style={{ marginBottom: 'var(--s5)', gap: 'var(--s2)' }}>
+      <header className="flex items-center gap-space-sm">
         <button
-          className="btn btn--ghost"
           onClick={() => navigate('/oyunlar')}
-          style={{ width: 42, height: 42, padding: 0, display: 'grid', placeItems: 'center' }}
           aria-label="Oyunlara dön"
+          className="w-10 h-10 rounded-full bg-surface-card shadow-sm flex items-center justify-center text-on-surface-variant"
         >
-          <IconBack />
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
         </button>
         <div>
-          <p className="eyebrow">Bunu Bilir misin</p>
-          <h1>Partnerini ne kadar tanıyorsun?</h1>
+          <p className="text-label-eyebrow text-primary uppercase tracking-widest">Bunu Bilir misin</p>
+          <h1 className="text-headline-md text-on-surface">Partnerini ne kadar tanıyorsun?</h1>
         </div>
       </header>
 
-      {yukleniyor && <p className="muted">Yükleniyor…</p>}
+      {yukleniyor && <p className="text-body-sm text-text-muted">Yükleniyor…</p>}
 
       {!yukleniyor && !tur && (
-        <div className="card" style={{ textAlign: 'center', padding: 'var(--s7) var(--s5)' }}>
-          <h3>Henüz soru yok</h3>
-          <p className="muted" style={{ marginTop: 'var(--s2)', marginBottom: 'var(--s4)' }}>
+        <div className="bg-surface-card rounded-xl p-space-2xl text-center shadow-sm">
+          <h3 className="text-headline-sm text-on-surface">Henüz soru yok</h3>
+          <p className="text-body-sm text-text-muted mt-2 mb-space-md">
             Rastgele biriniz hedef olur, diğeri onun hakkında tahmin eder.
           </p>
-          <button className="btn btn--primary" onClick={yeniSoruBaslat}>Soru sor</button>
+          <button onClick={yeniSoruBaslat} className="px-space-xl py-2.5 rounded-full bg-primary text-on-primary text-label-button shadow-md">
+            Soru sor
+          </button>
         </div>
       )}
 
       {tur && soru && (
         <>
-          <div className="card" style={{ padding: 'var(--s5)', marginBottom: 'var(--s4)' }}>
-            <p className="eyebrow">
+          <div className="bg-surface-card rounded-xl p-space-lg shadow-sm">
+            <p className="text-label-eyebrow text-primary uppercase tracking-widest">
               {benHedefMiyim ? 'Senin hakkında' : `${partner?.display_name || 'Partnerin'} hakkında`}
             </p>
-            <h3>{soru.metin}</h3>
+            <h3 className="text-headline-sm text-on-surface mt-1">{soru.metin}</h3>
           </div>
 
-          {/* ---- Hedef, henüz cevaplamamış ---- */}
           {benHedefMiyim && hedefCevap == null && (
-            <div className="row" style={{ gap: 'var(--s2)' }}>
+            <div className="flex items-center gap-space-sm">
               <input
                 placeholder="Gerçek cevabın…"
                 value={girdiCevap}
                 onChange={(e) => setGirdiCevap(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && cevabimiKaydet()}
-                style={{ flex: 1 }}
+                className="flex-1 h-11 px-space-md rounded-lg bg-surface-card text-on-surface outline-none shadow-sm"
               />
-              <button className="btn btn--soft" onClick={cevabimiKaydet}>Kaydet</button>
+              <button onClick={cevabimiKaydet} className="px-space-lg h-11 rounded-lg bg-surface-soft text-primary text-label-button">
+                Kaydet
+              </button>
             </div>
           )}
 
-          {/* ---- Tahmin eden, hedef henüz cevaplamamışsa bekliyor ---- */}
           {!benHedefMiyim && hedefCevap == null && (
-            <p className="muted">
+            <p className="text-body-sm text-text-muted">
               {partner?.display_name || 'Partnerin'} önce kendi cevabını versin, bekleniyor…
             </p>
           )}
 
-          {/* ---- Tahmin eden, cevap var ve henüz tahmin etmemiş ---- */}
           {!benHedefMiyim && hedefCevap != null && !tur.tahmin_eden_id && (
-            <div className="row" style={{ gap: 'var(--s2)' }}>
+            <div className="flex items-center gap-space-sm">
               <input
                 placeholder="Tahminin…"
                 value={girdiTahmin}
                 onChange={(e) => setGirdiTahmin(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && tahminiGonder()}
-                style={{ flex: 1 }}
+                className="flex-1 h-11 px-space-md rounded-lg bg-surface-card text-on-surface outline-none shadow-sm"
               />
-              <button className="btn btn--soft" onClick={tahminiGonder}>Tahmin et</button>
+              <button onClick={tahminiGonder} className="px-space-lg h-11 rounded-lg bg-surface-soft text-primary text-label-button">
+                Tahmin et
+              </button>
             </div>
           )}
 
-          {/* ---- Hedef, cevap var ama partner henüz tahmin etmemiş ---- */}
           {benHedefMiyim && hedefCevap != null && !tur.tahmin_eden_id && (
-            <p className="muted">
+            <p className="text-body-sm text-text-muted">
               {partner?.display_name || 'Partnerin'} tahmin ediyor…
             </p>
           )}
 
-          {/* ---- İfşa ---- */}
           {ifsaEdildi && (
-            <div className="card" style={{ padding: 'var(--s5)', marginTop: 'var(--s3)' }}>
-              <p className="faint" style={{ marginBottom: 'var(--s2)' }}>
-                <strong>{tur.tahmin_eden_id === user.id ? 'Tahminin' : `${partner?.display_name || 'Partnerin'}'in tahmini`}:</strong>{' '}
+            <div className="bg-surface-card rounded-xl p-space-lg shadow-sm space-y-space-xs">
+              <p className="text-text-faint text-body-sm">
+                <strong className="text-on-surface-variant">
+                  {tur.tahmin_eden_id === user.id ? 'Tahminin' : `${partner?.display_name || 'Partnerin'}'in tahmini`}:
+                </strong>{' '}
                 {tur.tahmin}
               </p>
-              <p style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <IconCheck style={{ width: 16, height: 16, color: 'var(--green)' }} />
+              <p className="flex items-center gap-1.5 text-on-surface">
+                <span className="material-symbols-outlined text-[18px] text-mint-vibrant">check_circle</span>
                 <strong>Gerçek cevap:</strong> {hedefCevap}
               </p>
-              <p className="faint" style={{ marginTop: 'var(--s2)' }}>
-                Doğru bilip bilmediğine siz karar verin.
-              </p>
+              <p className="text-text-faint text-body-sm">Doğru bilip bilmediğine siz karar verin.</p>
             </div>
           )}
 
-          {hata && (
-            <p style={{ color: 'var(--primary)', fontSize: 13, fontWeight: 600, marginTop: 'var(--s3)' }}>
-              {hata}
-            </p>
-          )}
+          {hata && <p className="text-primary text-body-sm font-semibold">{hata}</p>}
 
           {ifsaEdildi && (
-            <div style={{ textAlign: 'center', marginTop: 'var(--s5)' }}>
-              <button className="btn btn--primary" onClick={yeniSoruBaslat}>Yeni soru</button>
+            <div className="text-center">
+              <button onClick={yeniSoruBaslat} className="px-space-xl py-2.5 rounded-full bg-primary text-on-primary text-label-button shadow-md">
+                Yeni soru
+              </button>
             </div>
           )}
         </>

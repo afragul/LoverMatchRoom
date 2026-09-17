@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCouple } from '../../context/CoupleContext';
-import { IconUndo, IconRedo, IconTrash, IconCheck } from '../../components/Icons';
 
 const RENKLER = [
   '#23181A', '#D24558', '#FDA6AB', '#FAC977', '#61A07D', '#5D300E', '#7FA8D9',
@@ -33,6 +32,8 @@ export default function DrawPage() {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [hata, setHata]           = useState(null);
   const [kaydedildi, setKaydedildi] = useState(false);
+  const [sohbet, setSohbet]       = useState([]);
+  const [sohbetMetin, setSohbetMetin] = useState('');
 
   const tazele = () => setSayac((s) => s + 1);
 
@@ -138,6 +139,9 @@ export default function DrawPage() {
         if (payload.kim === user.id) return;
         partnerRef.current = null;
         tazele();
+      })
+      .on('broadcast', { event: 'sohbet' }, ({ payload }) => {
+        setSohbet((s) => [...s, payload]);
       })
 
       // kalıcı kayıtlar
@@ -287,45 +291,57 @@ export default function DrawPage() {
     setTimeout(() => setKaydedildi(false), 2200);
   }
 
+  function sohbetGonder() {
+    const metin = sohbetMetin.trim();
+    if (!metin) return;
+    setSohbetMetin('');
+    kanalRef.current?.send({ type: 'broadcast', event: 'sohbet', payload: { kim: user.id, metin } });
+  }
+
   const benimVar = cizgilerRef.current.some((s) => s.sahip === user.id);
   const bosDegil = cizgilerRef.current.length > 0;
 
   return (
     <>
-      <header className="row" style={{ marginBottom: 'var(--s4)' }}>
-        <div>
-          <p className="eyebrow">Birlikte Çiz</p>
-          <h1>Tuval</h1>
+      <div className="bg-surface-card rounded-xl p-space-md shadow-sm space-y-space-sm">
+        <div className="flex items-center justify-between gap-space-xs">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-primary">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-label-eyebrow">CANLI TUVAL</span>
+          </div>
+          {partnerAktif && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-mint-soft text-mint-vibrant">
+              <span className="w-1.5 h-1.5 rounded-full bg-mint-vibrant animate-pulse" />
+              <span className="text-label-eyebrow text-brown-earth">{partner?.display_name || 'Partnerin'} de burada</span>
+            </div>
+          )}
         </div>
-        <div className="spacer" />
-        <span className={'badge ' + (partnerAktif ? 'badge--live' : 'badge--away')}>
-          <span className="dot" />
-          {partnerAktif ? 'Bağlı' : 'Yalnızsın'}
-        </span>
-      </header>
+        <h1 className="text-headline-sm text-on-surface">Birlikte Çizim Odası 🎨</h1>
+      </div>
 
       {/* araç çubuğu */}
-      <div
-        className="card"
-        style={{ padding: 'var(--s2)', marginBottom: 'var(--s3)', display: 'flex', gap: 'var(--s1)' }}
-      >
-        <Arac onClick={geriAl}  disabled={!benimVar}             etiket="Geri al"><IconUndo /></Arac>
-        <Arac onClick={ileriAl} disabled={geriYigin.length === 0} etiket="İleri al"><IconRedo /></Arac>
-        <Arac onClick={temizle} disabled={!bosDegil}              etiket="Tuvali temizle"><IconTrash /></Arac>
-        <Arac onClick={kaydet}  disabled={!bosDegil} vurgu        etiket="Görsel olarak indir">
-          {kaydedildi ? <IconCheck /> : <span style={{ fontSize: 13, fontWeight: 700 }}>İndir</span>}
+      <div className="bg-surface-card rounded-xl p-space-sm shadow-sm flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+        <Arac onClick={geriAl} disabled={!benimVar} etiket="Geri al">
+          <span className="material-symbols-outlined text-[20px]">undo</span>
+        </Arac>
+        <Arac onClick={ileriAl} disabled={geriYigin.length === 0} etiket="İleri al">
+          <span className="material-symbols-outlined text-[20px]">redo</span>
+        </Arac>
+        <Arac onClick={temizle} disabled={!bosDegil} etiket="Tuvali temizle">
+          <span className="material-symbols-outlined text-[20px]">delete_sweep</span>
+        </Arac>
+        <Arac onClick={kaydet} disabled={!bosDegil} vurgu etiket="Görsel olarak indir">
+          <span className="material-symbols-outlined text-[20px]">
+            {kaydedildi ? 'check_circle' : 'download'}
+          </span>
         </Arac>
       </div>
 
       {/* tuval */}
-      <div
-        ref={sarmalRef}
-        className="card"
-        style={{ padding: 0, overflow: 'hidden', boxShadow: 'var(--shadow-md)', position: 'relative' }}
-      >
+      <div ref={sarmalRef} className="bg-surface-card rounded-xl shadow-md overflow-hidden relative">
         <canvas
           ref={canvasRef}
-          style={{ display: 'block', touchAction: 'none', cursor: 'crosshair' }}
+          className="block touch-none cursor-crosshair w-full"
           onMouseDown={basla}
           onMouseMove={surukle}
           onMouseUp={bitir}
@@ -336,74 +352,98 @@ export default function DrawPage() {
         />
 
         {yukleniyor && (
-          <div
-            style={{
-              position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
-              background: 'var(--surface)', color: 'var(--text-faint)', fontSize: 13,
-            }}
-          >
+          <div className="absolute inset-0 grid place-items-center bg-surface text-text-faint text-body-sm">
             Tuval yükleniyor…
           </div>
         )}
 
         {!yukleniyor && !bosDegil && (
-          <div
-            style={{
-              position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
-              pointerEvents: 'none', color: 'var(--text-faint)', fontSize: 13,
-            }}
-          >
+          <div className="absolute inset-0 grid place-items-center pointer-events-none text-text-faint text-body-sm">
             Buraya çizmeye başla
           </div>
         )}
       </div>
 
       {/* renk + kalınlık */}
-      <div className="card" style={{ marginTop: 'var(--s3)', padding: 'var(--s4)' }}>
-        <div className="row" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
+      <div className="bg-surface-card rounded-xl p-space-lg shadow-sm space-y-space-md">
+        <div className="flex items-center gap-2 flex-wrap">
           {RENKLER.map((r) => (
             <button
               key={r}
               onClick={() => setRenk(r)}
               aria-label={`Renk ${r}`}
+              className="w-8 h-8 rounded-full transition-transform"
               style={{
-                width: 30, height: 30, borderRadius: '50%', background: r, cursor: 'pointer',
-                border: r === renk ? '2px solid var(--text)' : '2px solid transparent',
-                outline: r === renk ? '2px solid var(--surface)' : 'none',
-                outlineOffset: -4,
-                transform: r === renk ? 'scale(1.12)' : 'none',
-                transition: 'transform 0.18s var(--ease)',
+                background: r,
+                boxShadow: r === renk ? '0 0 0 2px var(--color-surface-card), 0 0 0 4px var(--color-primary)' : 'none',
+                transform: r === renk ? 'scale(1.1)' : 'none',
               }}
             />
           ))}
         </div>
 
-        <div className="row" style={{ gap: 'var(--s3)', marginTop: 'var(--s4)' }}>
+        <div className="flex items-center gap-2">
           {KALINLIKLAR.map((k) => (
             <button
               key={k}
               onClick={() => setKalinlik(k)}
               aria-label={`Fırça ${k}`}
-              style={{
-                flex: 1, height: 40, borderRadius: 'var(--r-sm)', cursor: 'pointer', border: 'none',
-                background: k === kalinlik ? 'var(--surface-soft)' : 'transparent',
-                display: 'grid', placeItems: 'center',
-                transition: 'background 0.2s var(--ease)',
-              }}
+              className={
+                'flex-1 h-10 rounded-lg grid place-items-center transition-colors ' +
+                (k === kalinlik ? 'bg-surface-soft' : 'bg-transparent')
+              }
             >
-              <span style={{ width: k + 6, height: k + 6, borderRadius: '50%', background: renk, display: 'block' }} />
+              <span className="rounded-full block" style={{ width: k + 6, height: k + 6, background: renk }} />
             </button>
           ))}
         </div>
       </div>
 
-      {hata && (
-        <p style={{ color: 'var(--primary)', fontSize: 13, fontWeight: 600, marginTop: 'var(--s3)', textAlign: 'center' }}>
-          {hata}
-        </p>
-      )}
+      {hata && <p className="text-primary text-body-sm font-semibold text-center">{hata}</p>}
 
-      <p className="faint" style={{ marginTop: 'var(--s3)', textAlign: 'center' }}>
+      {/* çizim sohbeti */}
+      <div className="bg-surface-card rounded-xl p-space-lg shadow-sm space-y-space-sm">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-primary text-[18px]">forum</span>
+          <h2 className="text-headline-sm text-on-surface">Çizim Sohbeti</h2>
+        </div>
+
+        {sohbet.length > 0 && (
+          <div className="space-y-space-xs max-h-[160px] overflow-y-auto no-scrollbar pr-0.5">
+            {sohbet.map((m, i) => (
+              <div key={i} className={'flex ' + (m.kim === user.id ? 'justify-end' : 'justify-start')}>
+                <div
+                  className={
+                    'px-3 py-2 rounded-xl text-body-sm max-w-[80%] ' +
+                    (m.kim === user.id ? 'bg-primary text-on-primary rounded-tr-none' : 'bg-surface-soft text-on-surface rounded-tl-none')
+                  }
+                >
+                  {m.metin}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-space-xs">
+          <input
+            value={sohbetMetin}
+            onChange={(e) => setSohbetMetin(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && sohbetGonder()}
+            placeholder="Tatlı bir mesaj yaz…"
+            className="flex-1 h-10 px-space-md rounded-full bg-surface-soft text-body-sm text-on-surface outline-none"
+          />
+          <button
+            onClick={sohbetGonder}
+            aria-label="Gönder"
+            className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center"
+          >
+            <span className="material-symbols-outlined text-[18px]">send</span>
+          </button>
+        </div>
+      </div>
+
+      <p className="text-body-sm text-text-faint text-center">
         {partnerAktif
           ? `${partner?.display_name || 'Partnerin'} de aynı tuvalde.`
           : 'Tuval saklanıyor. İstediğin zaman geri dön.'}
@@ -419,15 +459,11 @@ function Arac({ children, etiket, vurgu, ...p }) {
       aria-label={etiket}
       title={etiket}
       onMouseDown={(e) => e.preventDefault()}
-      style={{
-        flex: 1, height: 42, border: 'none', borderRadius: 'var(--r-sm)',
-        background: vurgu ? 'var(--surface-soft)' : 'transparent',
-        color: vurgu ? 'var(--primary)' : 'var(--text-muted)',
-        display: 'grid', placeItems: 'center',
-        cursor: p.disabled ? 'default' : 'pointer',
-        opacity: p.disabled ? 0.35 : 1,
-        transition: 'background 0.2s var(--ease)',
-      }}
+      className={
+        'flex-1 h-10 rounded-lg grid place-items-center transition-colors flex-shrink-0 w-10 ' +
+        (vurgu ? 'bg-surface-soft text-primary' : 'bg-transparent text-on-surface-variant') +
+        (p.disabled ? ' opacity-35' : '')
+      }
     >
       {children}
     </button>
