@@ -61,6 +61,16 @@ create table public.notes (
   created_at timestamptz not null default now()
 );
 
+-- ÇİZİM: ortak tuvaldeki kalıcı çizgiler
+-- (canlı akış broadcast ile gidiyor, burada sadece tamamlanan çizgi saklanıyor)
+create table public.strokes (
+  id         uuid primary key default gen_random_uuid(),
+  couple_id  uuid not null references public.couples(id) on delete cascade,
+  author_id  uuid not null references auth.users(id)     on delete cascade,
+  data       jsonb not null,
+  created_at timestamptz not null default now()
+);
+
 
 -- ---------------------------------------------------------------------
 -- 2) YARDIMCI FONKSİYONLAR
@@ -261,6 +271,7 @@ alter table public.couples        enable row level security;
 alter table public.couple_members enable row level security;
 alter table public.invites        enable row level security;
 alter table public.notes          enable row level security;
+alter table public.strokes        enable row level security;
 
 -- PROFILES: kendi profilini + partnerinin profilini gör
 create policy "read own or partner profile"
@@ -306,9 +317,23 @@ create policy "delete own notes"
   on public.notes for delete
   using (author_id = auth.uid());
 
+-- STROKES: sadece kendi couple'ının çizgileri
+create policy "read couple strokes"
+  on public.strokes for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple strokes"
+  on public.strokes for insert
+  with check (public.is_couple_member(couple_id) and author_id = auth.uid());
+
+create policy "delete couple strokes"
+  on public.strokes for delete
+  using (public.is_couple_member(couple_id));
+
 
 -- ---------------------------------------------------------------------
 -- 6) REALTIME (anlık senkron için)
 -- ---------------------------------------------------------------------
 alter publication supabase_realtime add table public.notes;
--- draw / games tablolarını eklediğinde buraya da aynı satırdan ekle
+alter publication supabase_realtime add table public.strokes;
+-- games tablolarını eklediğinde buraya da aynı satırdan ekle
