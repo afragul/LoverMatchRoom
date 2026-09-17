@@ -71,6 +71,17 @@ create table public.strokes (
   created_at timestamptz not null default now()
 );
 
+-- XOX: couple başına tek aktif oyun satırı (yeni oyun = aynı satırın üzerine yazılır)
+-- Kimin O olduğu ayrıca tutulmuyor: couple'da 2 kişi var, x_user_id olmayan O'dur.
+create table public.xox_games (
+  couple_id  uuid primary key references public.couples(id) on delete cascade,
+  board      jsonb not null default '[null,null,null,null,null,null,null,null,null]'::jsonb,
+  x_user_id  uuid not null references auth.users(id),
+  sira       uuid references auth.users(id),
+  kazanan    text,
+  updated_at timestamptz not null default now()
+);
+
 
 -- ---------------------------------------------------------------------
 -- 2) YARDIMCI FONKSİYONLAR
@@ -272,6 +283,7 @@ alter table public.couple_members enable row level security;
 alter table public.invites        enable row level security;
 alter table public.notes          enable row level security;
 alter table public.strokes        enable row level security;
+alter table public.xox_games      enable row level security;
 
 -- PROFILES: kendi profilini + partnerinin profilini gör
 create policy "read own or partner profile"
@@ -330,10 +342,23 @@ create policy "delete couple strokes"
   on public.strokes for delete
   using (public.is_couple_member(couple_id));
 
+-- XOX_GAMES: sadece kendi couple'ının oyunu
+create policy "read couple xox_games"
+  on public.xox_games for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple xox_games"
+  on public.xox_games for insert
+  with check (public.is_couple_member(couple_id) and x_user_id = auth.uid());
+
+create policy "update couple xox_games"
+  on public.xox_games for update
+  using (public.is_couple_member(couple_id));
+
 
 -- ---------------------------------------------------------------------
 -- 6) REALTIME (anlık senkron için)
 -- ---------------------------------------------------------------------
 alter publication supabase_realtime add table public.notes;
 alter publication supabase_realtime add table public.strokes;
--- games tablolarını eklediğinde buraya da aynı satırdan ekle
+alter publication supabase_realtime add table public.xox_games;

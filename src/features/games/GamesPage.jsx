@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useCouple } from '../../context/CoupleContext';
 
 const OYUNLAR = [
@@ -6,7 +7,8 @@ const OYUNLAR = [
     alt: 'Üç taşı yan yana getir',
     isaret: '⌗',
     ton: 'var(--soft-pink)',
-    hazir: false,
+    hazir: true,
+    yol: '/oyunlar/xox',
   },
   {
     ad: 'Kelime Düellosu',
@@ -32,6 +34,7 @@ const OYUNLAR = [
 ];
 
 export default function GamesPage() {
+  const navigate = useNavigate();
   const { partnerAktif, partner } = useCouple();
 
   return (
@@ -52,6 +55,7 @@ export default function GamesPage() {
             key={o.ad}
             className="card card-tap"
             disabled={!o.hazir}
+            onClick={() => o.hazir && navigate(o.yol)}
             style={{
               padding: 'var(--s4)',
               minHeight: 160,
@@ -87,9 +91,9 @@ export default function GamesPage() {
       </div>
 
       <div className="card card--flat" style={{ marginTop: 'var(--s5)' }}>
-        <h3>Oyunlar hazırlanıyor</h3>
+        <h3>Diğerleri hazırlanıyor</h3>
         <p className="muted" style={{ marginTop: 'var(--s2)' }}>
-          Tahta ve sıra bilgisi ikinizde anlık eşitlenecek. İlk olarak XOX geliyor.
+          Tahta ve sıra bilgisi ikinizde anlık eşitlenecek.
         </p>
       </div>
     </>

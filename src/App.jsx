@@ -9,6 +9,7 @@ import HomePage from './features/home/HomePage';
 import NotesPage from './features/notes/NotesPage';
 import GamesPage from './features/games/GamesPage';
 import DrawPage from './features/draw/DrawPage';
+import XoxPage from './features/games/XoxPage';
 import RoomPage from './features/room/RoomPage';
 
 function Yukleniyor() {
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/notlar"  element={<NotesPage />} />
           <Route path="/ciz"     element={<DrawPage />} />
           <Route path="/oyunlar" element={<GamesPage />} />
+          <Route path="/oyunlar/xox" element={<XoxPage />} />
           <Route path="/anilar"  element={<AnilarPage />} />
           <Route path="/oda"     element={<RoomPage />} />
           <Route path="*"        element={<Navigate to="/" replace />} />
