@@ -35,30 +35,41 @@ export default function ChatPage() {
       .channel(`mesajlar:${coupleId}`)
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `couple_id=eq.${coupleId}` },
-        ({ new: yeni }) => setMesajlar((e) => (e.some((m) => m.id === yeni.id) ? e : [...e, yeni])))
+        ({ new: yeni }) => {
+          setMesajlar((e) => (e.some((m) => m.id === yeni.id) ? e : [...e, yeni]));
+          setTimeout(() => enAltaKaydir(true), 0);
+        })
       .subscribe();
 
     return () => { iptal = true; supabase.removeChannel(kanal); };
   }, [coupleId]);
 
-  // yeni mesaj gelince en alta kay (ilk yüklemede animasyonsuz, sonrasında yumuşak)
+  // dipRef sayfanın gerçek en altında (composer'dan sonra) duruyor;
+  // ona kaydırmak composer dahil tüm sayfayı en alta getirir.
+  function enAltaKaydir(pürüzsüz) {
+    dipRef.current?.scrollIntoView({ behavior: pürüzsüz ? 'smooth' : 'auto', block: 'end' });
+  }
+
+  // ilk yüklemede animasyonsuz en alta in
   const ilkYuklemeRef = useRef(true);
   useEffect(() => {
-    if (yukleniyor) return;
-    dipRef.current?.scrollIntoView({ behavior: ilkYuklemeRef.current ? 'auto' : 'smooth', block: 'end' });
+    if (yukleniyor || !ilkYuklemeRef.current) return;
+    enAltaKaydir(false);
     ilkYuklemeRef.current = false;
-  }, [mesajlar.length, yukleniyor]);
+  }, [yukleniyor]);
 
-  // klavye açılıp kapanınca (mesaj gönderip textarea blur olunca vs.) viewport
-  // boyu değişiyor ve sayfa artık en altta durmuyor — her boy değişiminde
-  // tekrar en alta kaydır ki kullanıcı elle kaydırmak zorunda kalmasın.
-  useEffect(() => {
+  // Gönder butonuna basınca textarea blur olup klavye kapanıyor; bu da
+  // viewport boyunu (ve dolayısıyla "en alt"ı) birkaç yüz ms sonra değiştiriyor.
+  // Kalıcı bir dinleyici yerine, sadece gönderim sonrası kısa bir pencerede
+  // dinleyip sonra kaldırıyoruz — yoksa normal kaydırma/adres çubuğu
+  // hareketleriyle çakışıp titremeye sebep oluyor.
+  function klavyeKapanmasiniTakipEt() {
     const vv = window.visualViewport;
     if (!vv) return;
-    const kaydir = () => dipRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+    const kaydir = () => enAltaKaydir(false);
     vv.addEventListener('resize', kaydir);
-    return () => vv.removeEventListener('resize', kaydir);
-  }, []);
+    setTimeout(() => vv.removeEventListener('resize', kaydir), 500);
+  }
 
   async function gonder() {
     const temiz = metin.trim();
@@ -79,6 +90,8 @@ export default function ChatPage() {
     if (error) { setHata('Mesaj gönderilemedi. Tekrar dene.'); setMetin(temiz); return; }
 
     setMesajlar((e) => (e.some((m) => m.id === data.id) ? e : [...e, data]));
+    setTimeout(() => enAltaKaydir(false), 0);
+    klavyeKapanmasiniTakipEt();
   }
 
   function tuslama(e) {
@@ -134,19 +147,18 @@ export default function ChatPage() {
             );
           })
         )}
-        <div ref={dipRef} />
       </div>
 
       {hata && <div className="bg-surface-card rounded-xl p-space-md text-primary text-body-sm mt-space-sm">{hata}</div>}
 
-      <div className="flex items-end gap-2 mt-space-sm sticky bottom-24 z-10">
+      <div className="flex items-end gap-2 mt-space-sm">
         <textarea
           rows={1}
           value={metin}
           onChange={(e) => setMetin(e.target.value)}
           onKeyDown={tuslama}
           placeholder="Bir mesaj yaz…"
-          className="flex-1 max-h-28 p-space-md rounded-xl bg-surface-card shadow-md text-on-surface text-body-base placeholder:text-text-faint outline-none resize-none"
+          className="flex-1 max-h-28 p-space-md rounded-xl bg-surface-soft text-on-surface text-body-base placeholder:text-text-faint outline-none resize-none"
         />
         <button
           onClick={gonder}
@@ -157,6 +169,8 @@ export default function ChatPage() {
           <span className="material-symbols-outlined text-[20px]">send</span>
         </button>
       </div>
+
+      <div ref={dipRef} />
     </>
   );
 }
