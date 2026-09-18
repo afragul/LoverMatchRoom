@@ -18,7 +18,7 @@ function guvenliDosyaAdi(dosya) {
 export default function ProfilPage() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { yenile } = useCouple();
+  const { coupleId, partner, yenile } = useCouple();
 
   const [yukleniyor, setYukleniyor] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState(null);
@@ -35,6 +35,12 @@ export default function ProfilPage() {
   const [sifreKaydediliyor, setSifreKaydediliyor] = useState(false);
   const [sifreHata, setSifreHata] = useState(null);
   const [sifreBasarili, setSifreBasarili] = useState(false);
+
+  const [ayrilikMesgul, setAyrilikMesgul] = useState(false);
+  const [ayrilikHata, setAyrilikHata] = useState(null);
+
+  const [silmeMesgul, setSilmeMesgul] = useState(false);
+  const [silmeHata, setSilmeHata] = useState(null);
 
   useEffect(() => {
     let iptal = false;
@@ -120,6 +126,38 @@ export default function ProfilPage() {
     setTimeout(() => setSifreBasarili(false), 2500);
   }
 
+  async function eslesmeyiKaldir() {
+    const isim = partner?.display_name || 'partnerinle';
+    if (!window.confirm(`${isim} olan eşleşmen kaldırılacak. Notlar/oyunlar/anılar silinmez ama bir daha görünmez, sen de başka biriyle eşleşebilirsin. Devam edilsin mi?`)) return;
+
+    setAyrilikMesgul(true);
+    setAyrilikHata(null);
+
+    const { error } = await supabase.rpc('leave_couple');
+
+    setAyrilikMesgul(false);
+
+    if (error) { setAyrilikHata('Eşleşme kaldırılamadı.'); return; }
+    yenile();
+  }
+
+  async function hesabiSil() {
+    if (coupleId) return;
+    if (!window.confirm('Hesabın kalıcı olarak silinecek, bu geri alınamaz. Emin misin?')) return;
+
+    setSilmeMesgul(true);
+    setSilmeHata(null);
+
+    const { error } = await supabase.rpc('delete_account');
+
+    if (error) {
+      setSilmeMesgul(false);
+      setSilmeHata(error.message.includes('STILL_MATCHED') ? 'Önce eşleşmeni kaldırman gerekiyor.' : 'Hesap silinemedi.');
+      return;
+    }
+    await signOut();
+  }
+
   return (
     <>
       <header className="flex items-center gap-space-sm">
@@ -201,6 +239,40 @@ export default function ProfilPage() {
               className="w-full py-2.5 rounded-xl bg-surface-soft disabled:opacity-50 text-primary text-label-button"
             >
               {sifreKaydediliyor ? 'Değiştiriliyor…' : sifreBasarili ? 'Değiştirildi ✓' : 'Şifreyi değiştir'}
+            </button>
+          </section>
+
+          <section className="bg-surface-card rounded-xl p-space-lg shadow-sm space-y-space-sm">
+            <h2 className="text-headline-sm text-on-surface">Hesap işlemleri</h2>
+
+            {coupleId && (
+              <>
+                <p className="text-body-sm text-text-muted">
+                  {partner?.display_name || 'Partnerinle'} olan eşleşmeni kaldırabilirsin. Veriniz silinmez, sadece bir daha erişemezsiniz; ikiniz de başka biriyle eşleşebilir hale gelir.
+                </p>
+                {ayrilikHata && <p className="text-primary text-body-sm font-semibold">{ayrilikHata}</p>}
+                <button
+                  onClick={eslesmeyiKaldir}
+                  disabled={ayrilikMesgul}
+                  className="w-full py-2.5 rounded-xl bg-surface-soft disabled:opacity-50 text-primary text-label-button"
+                >
+                  {ayrilikMesgul ? 'Kaldırılıyor…' : 'Eşleşmeyi kaldır'}
+                </button>
+              </>
+            )}
+
+            {coupleId && (
+              <p className="text-body-sm text-text-muted">
+                Hesabını silmeden önce eşleşmeni kaldırman gerekiyor — paylaşılan veri bir kişiye değil ikinize ait olduğu için eşleşikken silinemiyor.
+              </p>
+            )}
+            {silmeHata && <p className="text-primary text-body-sm font-semibold">{silmeHata}</p>}
+            <button
+              onClick={hesabiSil}
+              disabled={silmeMesgul || !!coupleId}
+              className="w-full py-2.5 rounded-xl bg-error text-on-error disabled:opacity-50 text-label-button shadow-md"
+            >
+              {silmeMesgul ? 'Siliniyor…' : 'Hesabı sil'}
             </button>
           </section>
 
