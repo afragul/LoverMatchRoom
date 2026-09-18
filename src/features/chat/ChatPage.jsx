@@ -170,7 +170,8 @@ export default function ChatPage() {
         </button>
       </div>
 
-      <div ref={dipRef} />
+      {/* scroll-mb: alttaki sabit nav'ın arkasında kalmasın diye kaydırma hedefine pay bırakıyoruz */}
+      <div ref={dipRef} className="scroll-mb-28" />
     </>
   );
 }
