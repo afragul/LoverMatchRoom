@@ -243,7 +243,7 @@ export default function NotesPage() {
 
       {yaziyor && (
         <div
-          className="fixed inset-0 z-50 flex items-end bg-black/40 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-end bg-black/40 backdrop-blur-sm"
           onClick={() => setYaziyor(false)}
         >
           <div
@@ -299,9 +299,9 @@ export default function NotesPage() {
               className="w-full p-space-md rounded-xl bg-surface-soft text-on-surface text-body-base placeholder:text-text-faint outline-none resize-none"
             />
 
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input type="checkbox" checked={pinli} onChange={(e) => setPinli(e.target.checked)} className="accent-primary w-4 h-4" />
-              <span className="text-body-sm text-on-surface-variant">Panonun en üstüne iğnele</span>
+            <label className="flex items-center gap-2 cursor-pointer select-none w-full">
+              <input type="checkbox" checked={pinli} onChange={(e) => setPinli(e.target.checked)} className="accent-primary w-4 h-4 flex-shrink-0" />
+              <span className="text-body-sm text-on-surface-variant min-w-0">Panonun en üstüne iğnele</span>
             </label>
 
             <button

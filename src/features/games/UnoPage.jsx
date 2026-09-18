@@ -415,7 +415,7 @@ export default function UnoPage() {
       {hata && <p className="text-primary text-body-sm font-semibold">{hata}</p>}
 
       {rengSeciyor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setRengSeciyor(false); setBekleyenIndex(null); }}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setRengSeciyor(false); setBekleyenIndex(null); }}>
           <div className="bg-surface-card rounded-2xl p-space-xl space-y-space-md" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-headline-sm text-on-surface text-center">Renk seç</h3>
             <div className="grid grid-cols-2 gap-space-sm">

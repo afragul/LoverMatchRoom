@@ -235,7 +235,7 @@ export default function AnilarPage() {
       )}
 
       {formAcik && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/40 backdrop-blur-sm" onClick={() => setFormAcik(false)}>
+        <div className="fixed inset-0 z-[60] flex items-end bg-black/40 backdrop-blur-sm" onClick={() => setFormAcik(false)}>
           <div className="w-full bg-surface-card rounded-t-3xl p-space-xl space-y-space-md max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-headline-md text-on-surface">Yeni Anı Ekle</h2>

@@ -86,7 +86,7 @@ export default function RoomPage() {
       <button onClick={signOut} className="text-text-muted text-label-tab">Çıkış yap</button>
 
       {duzenle && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/40 backdrop-blur-sm" onClick={() => setDuzenle(false)}>
+        <div className="fixed inset-0 z-[60] flex items-end bg-black/40 backdrop-blur-sm" onClick={() => setDuzenle(false)}>
           <div className="w-full bg-surface-card rounded-t-3xl p-space-xl space-y-space-md" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-headline-md text-on-surface">Odayı düzenle</h2>
 
