@@ -41,10 +41,13 @@ export default function ChatPage() {
     return () => { iptal = true; supabase.removeChannel(kanal); };
   }, [coupleId]);
 
-  // yeni mesaj gelince en alta kay
+  // yeni mesaj gelince en alta kay (ilk yüklemede animasyonsuz, sonrasında yumuşak)
+  const ilkYuklemeRef = useRef(true);
   useEffect(() => {
-    dipRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [mesajlar.length]);
+    if (yukleniyor) return;
+    dipRef.current?.scrollIntoView({ behavior: ilkYuklemeRef.current ? 'auto' : 'smooth', block: 'end' });
+    ilkYuklemeRef.current = false;
+  }, [mesajlar.length, yukleniyor]);
 
   async function gonder() {
     const temiz = metin.trim();
@@ -77,15 +80,15 @@ export default function ChatPage() {
   const saat = (iso) => new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-13rem)]">
-      <header className="space-y-1 mb-space-md flex-shrink-0">
+    <>
+      <header className="space-y-1">
         <p className="text-label-eyebrow text-primary uppercase tracking-widest">Sohbet</p>
         <h1 className="text-headline-lg-mobile text-on-surface">
           {partner?.display_name || 'Partnerin'} ile Sohbet 💬
         </h1>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-space-sm pr-1">
+      <div className="space-y-space-sm">
         {yukleniyor ? (
           <p className="text-body-sm text-text-muted">Yükleniyor…</p>
         ) : mesajlar.length === 0 ? (
@@ -123,16 +126,16 @@ export default function ChatPage() {
         <div ref={dipRef} />
       </div>
 
-      {hata && <div className="bg-surface-card rounded-xl p-space-md text-primary text-body-sm mt-space-sm flex-shrink-0">{hata}</div>}
+      {hata && <div className="bg-surface-card rounded-xl p-space-md text-primary text-body-sm mt-space-sm">{hata}</div>}
 
-      <div className="flex items-end gap-2 mt-space-sm flex-shrink-0">
+      <div className="flex items-end gap-2 mt-space-sm sticky bottom-24 z-10">
         <textarea
           rows={1}
           value={metin}
           onChange={(e) => setMetin(e.target.value)}
           onKeyDown={tuslama}
           placeholder="Bir mesaj yaz…"
-          className="flex-1 max-h-28 p-space-md rounded-xl bg-surface-soft text-on-surface text-body-base placeholder:text-text-faint outline-none resize-none"
+          className="flex-1 max-h-28 p-space-md rounded-xl bg-surface-card shadow-md text-on-surface text-body-base placeholder:text-text-faint outline-none resize-none"
         />
         <button
           onClick={gonder}
@@ -143,6 +146,6 @@ export default function ChatPage() {
           <span className="material-symbols-outlined text-[20px]">send</span>
         </button>
       </div>
-    </div>
+    </>
   );
 }
