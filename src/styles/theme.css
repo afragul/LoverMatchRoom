@@ -71,6 +71,7 @@ h3 { font-size: 17px; font-weight: 700; }
 p { margin: 0; }
 
 button { font-family: inherit; }
+button:not(:disabled) { cursor: pointer; }
 
 input, textarea {
   font-family: inherit;

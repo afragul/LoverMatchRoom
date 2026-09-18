@@ -299,9 +299,12 @@ export default function NotesPage() {
               className="w-full p-space-md rounded-xl bg-surface-soft text-on-surface text-body-base placeholder:text-text-faint outline-none resize-none"
             />
 
-            <label className="flex items-center gap-2 cursor-pointer select-none w-full">
-              <input type="checkbox" checked={pinli} onChange={(e) => setPinli(e.target.checked)} className="accent-primary w-4 h-4 flex-shrink-0" />
-              <span className="text-body-sm text-on-surface-variant min-w-0">Panonun en üstüne iğnele</span>
+            <label
+              className="grid items-center gap-2 cursor-pointer select-none w-full"
+              style={{ gridTemplateColumns: 'auto minmax(0,1fr)' }}
+            >
+              <input type="checkbox" checked={pinli} onChange={(e) => setPinli(e.target.checked)} className="accent-primary w-4 h-4" />
+              <span className="text-body-sm text-on-surface-variant break-words">Panonun en üstüne iğnele</span>
             </label>
 
             <button
@@ -309,7 +312,7 @@ export default function NotesPage() {
               disabled={gonderiliyor || !metin.trim()}
               className="w-full py-3 rounded-xl bg-primary hover:bg-primary-dark disabled:opacity-50 text-on-primary text-label-button shadow-md transition-all"
             >
-              {gonderiliyor ? 'Ekleniyor…' : 'Notu İğnele'}
+              {gonderiliyor ? 'Ekleniyor…' : 'Notu Kaydet'}
             </button>
           </div>
         </div>
