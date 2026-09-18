@@ -6,6 +6,7 @@ import { Avatar } from './Bond';
 const SEKMELER = [
   { yol: '/', ikon: 'home', etiket: 'Ana Sayfa' },
   { yol: '/oda', ikon: 'favorite', etiket: 'Eşleşme' },
+  { yol: '/mesajlar', ikon: 'chat', etiket: 'Sohbet' },
   { yol: '/notlar', ikon: 'edit_note', etiket: 'Notlar' },
   { yol: '/ciz', ikon: 'palette', etiket: 'Çiz' },
   { yol: '/oyunlar', ikon: 'sports_esports', etiket: 'Oyunlar' },

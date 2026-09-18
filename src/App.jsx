@@ -7,6 +7,7 @@ import AuthPage from './features/auth/AuthPage';
 import MatchPage from './features/match/MatchPage';
 import HomePage from './features/home/HomePage';
 import NotesPage from './features/notes/NotesPage';
+import ChatPage from './features/chat/ChatPage';
 import GamesPage from './features/games/GamesPage';
 import DrawPage from './features/draw/DrawPage';
 import XoxPage from './features/games/XoxPage';
@@ -64,6 +65,7 @@ export default function App() {
           <Routes>
             <Route path="/"        element={<HomePage />} />
             <Route path="/notlar"  element={<NotesPage />} />
+            <Route path="/mesajlar" element={<ChatPage />} />
             <Route path="/ciz"     element={<DrawPage />} />
             <Route path="/oyunlar" element={<GamesPage />} />
             <Route path="/oyunlar/xox" element={<XoxPage />} />
