@@ -44,31 +44,44 @@ export default function App() {
 
   if (authLoading || coupleLoading) return <Yukleniyor />;
   if (!user) return <AuthPage />;
-  if (!coupleId) return <MatchPage />;
 
   return (
     <BrowserRouter>
-      <AppShell>
+      {!coupleId ? (
         <Routes>
-          <Route path="/"        element={<HomePage />} />
-          <Route path="/notlar"  element={<NotesPage />} />
-          <Route path="/ciz"     element={<DrawPage />} />
-          <Route path="/oyunlar" element={<GamesPage />} />
-          <Route path="/oyunlar/xox" element={<XoxPage />} />
-          <Route path="/oyunlar/duello" element={<DuelloPage />} />
-          <Route path="/oyunlar/cizbil" element={<CizBilPage />} />
-          <Route path="/oyunlar/bilirmisin" element={<BilirMisinPage />} />
-          <Route path="/oyunlar/uno" element={<UnoPage />} />
-          <Route path="/oyunlar/kutudoldurma" element={<DotsBoxesPage />} />
-          <Route path="/oyunlar/connect4" element={<Connect4Page />} />
-          <Route path="/oyunlar/reversi" element={<ReversiPage />} />
-          <Route path="/oyunlar/amiralbatti" element={<BattleshipPage />} />
-          <Route path="/anilar"  element={<AnilarPage />} />
-          <Route path="/oda"     element={<RoomPage />} />
-          <Route path="/profil"  element={<ProfilPage />} />
-          <Route path="*"        element={<Navigate to="/" replace />} />
+          <Route
+            path="/profil"
+            element={
+              <div className="shell shell--wide" style={{ paddingTop: 'var(--s7)', paddingBottom: 'var(--s6)' }}>
+                <ProfilPage />
+              </div>
+            }
+          />
+          <Route path="*" element={<MatchPage />} />
         </Routes>
-      </AppShell>
+      ) : (
+        <AppShell>
+          <Routes>
+            <Route path="/"        element={<HomePage />} />
+            <Route path="/notlar"  element={<NotesPage />} />
+            <Route path="/ciz"     element={<DrawPage />} />
+            <Route path="/oyunlar" element={<GamesPage />} />
+            <Route path="/oyunlar/xox" element={<XoxPage />} />
+            <Route path="/oyunlar/duello" element={<DuelloPage />} />
+            <Route path="/oyunlar/cizbil" element={<CizBilPage />} />
+            <Route path="/oyunlar/bilirmisin" element={<BilirMisinPage />} />
+            <Route path="/oyunlar/uno" element={<UnoPage />} />
+            <Route path="/oyunlar/kutudoldurma" element={<DotsBoxesPage />} />
+            <Route path="/oyunlar/connect4" element={<Connect4Page />} />
+            <Route path="/oyunlar/reversi" element={<ReversiPage />} />
+            <Route path="/oyunlar/amiralbatti" element={<BattleshipPage />} />
+            <Route path="/anilar"  element={<AnilarPage />} />
+            <Route path="/oda"     element={<RoomPage />} />
+            <Route path="/profil"  element={<ProfilPage />} />
+            <Route path="*"        element={<Navigate to="/" replace />} />
+          </Routes>
+        </AppShell>
+      )}
     </BrowserRouter>
   );
 }

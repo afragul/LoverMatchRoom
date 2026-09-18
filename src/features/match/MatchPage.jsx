@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCouple } from '../../context/CoupleContext';
@@ -155,7 +156,8 @@ export default function MatchPage() {
 
         {hata && <p className="text-primary text-body-sm font-semibold text-center">{hata}</p>}
 
-        <div className="text-center">
+        <div className="text-center flex items-center justify-center gap-space-md">
+          <Link to="/profil" className="text-text-muted text-label-tab">Hesap ayarları</Link>
           <button onClick={signOut} className="text-text-muted text-label-tab">Çıkış yap</button>
         </div>
       </div>
