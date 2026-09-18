@@ -49,6 +49,17 @@ export default function ChatPage() {
     ilkYuklemeRef.current = false;
   }, [mesajlar.length, yukleniyor]);
 
+  // klavye açılıp kapanınca (mesaj gönderip textarea blur olunca vs.) viewport
+  // boyu değişiyor ve sayfa artık en altta durmuyor — her boy değişiminde
+  // tekrar en alta kaydır ki kullanıcı elle kaydırmak zorunda kalmasın.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const kaydir = () => dipRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+    vv.addEventListener('resize', kaydir);
+    return () => vv.removeEventListener('resize', kaydir);
+  }, []);
+
   async function gonder() {
     const temiz = metin.trim();
     if (!temiz) return;
