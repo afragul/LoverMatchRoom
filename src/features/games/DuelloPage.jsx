@@ -38,6 +38,17 @@ function yapilabilirMi(kelime, havuz) {
   return true;
 }
 
+// ~195 bin kelimelik Türkçe sözlük — sayfa açılana kadar ana pakete eklenmesin diye
+// dinamik import ile çekiliyor, oturum boyunca bir kez çözülüp önbelleğe alınıyor.
+let sozlukSozu = null;
+function sozlukYukle() {
+  if (!sozlukSozu) {
+    sozlukSozu = import('an-array-of-turkish-words')
+      .then((m) => new Set(m.default.map((k) => k.toLocaleUpperCase('tr-TR'))));
+  }
+  return sozlukSozu;
+}
+
 export default function DuelloPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -56,6 +67,13 @@ export default function DuelloPage() {
   const [gonderildiMi, setGonderildiMi] = useState(false);
   const [partnerSayac, setPartnerSayac] = useState(0);
   const [kalan, setKalan]             = useState(0);
+  const [sozluk, setSozluk]           = useState(null);
+
+  useEffect(() => {
+    let iptal = false;
+    sozlukYukle().then((s) => { if (!iptal) setSozluk(s); });
+    return () => { iptal = true; };
+  }, []);
 
   /* ================= yükle + realtime ================= */
 
@@ -166,6 +184,8 @@ export default function DuelloPage() {
     if (kelime.length < 2) { setHata('En az 2 harf olmalı.'); return; }
     if (kelimelerim.includes(kelime)) { setHata('Bu kelimeyi zaten ekledin.'); return; }
     if (!yapilabilirMi([...kelime], oyun.harfler)) { setHata('Bu harflerle yazılamıyor.'); return; }
+    if (!sozluk) { setHata('Sözlük yükleniyor, biraz bekleyip tekrar dene.'); return; }
+    if (!sozluk.has(kelime)) { setHata('Bu kelime sözlükte yok.'); return; }
 
     const yeni = [...kelimelerim, kelime];
     setKelimelerim(yeni);
@@ -270,13 +290,18 @@ export default function DuelloPage() {
           {!gonderildiMi && (
             <div className="flex items-center gap-space-sm">
               <input
-                placeholder="Kelime yaz…"
+                placeholder={sozluk ? 'Kelime yaz…' : 'Sözlük yükleniyor…'}
                 value={girdi}
                 onChange={(e) => setGirdi(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && kelimeEkle()}
-                className="flex-1 h-11 px-space-md rounded-lg bg-surface-card text-on-surface outline-none shadow-sm"
+                disabled={!sozluk}
+                className="flex-1 h-11 px-space-md rounded-lg bg-surface-card text-on-surface outline-none shadow-sm disabled:opacity-60"
               />
-              <button onClick={kelimeEkle} className="px-space-lg h-11 rounded-lg bg-surface-soft text-primary text-label-button">
+              <button
+                onClick={kelimeEkle}
+                disabled={!sozluk}
+                className="px-space-lg h-11 rounded-lg bg-surface-soft text-primary text-label-button disabled:opacity-60"
+              >
                 Ekle
               </button>
             </div>
@@ -315,7 +340,7 @@ export default function DuelloPage() {
               {sonuc === 'partner' && `${partner?.display_name || 'Partnerin'} kazandı.`}
             </h3>
             <p className="text-text-faint text-body-sm mt-2">
-              Kelimelerin gerçek olup olmadığını kontrol etmiyoruz — bunu ikinize bırakıyoruz.
+              Kelimeler Türkçe sözlüğe göre kontrol edildi.
             </p>
           </div>
 

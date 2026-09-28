@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",
     "@tailwindcss/vite": "^4.3.3",
+    "an-array-of-turkish-words": "^1.2.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1",
