@@ -459,6 +459,51 @@ $$;
 
 
 -- ---------------------------------------------------------------------
+-- 4c-2) AMİRAL BATTI: "Hazırım" (atomik merge + sıra ataması)
+--     Frontend'den:  supabase.rpc('battleship_hazirim', { p_couple_id, p_gemiler })
+--     İki oyuncu da aynı anda hazır olursa, düz update kendi tarayıcısındaki
+--     eski state'e göre partnerin hazır olup olmadığını yanlış hesaplayıp
+--     sira'yı hiç atamayabiliyordu (Duello'daki race'in aynısı) — tek
+--     transaction'lı atomik UPDATE, sıra ataması da aynı fonksiyon içinde.
+-- ---------------------------------------------------------------------
+create or replace function public.battleship_hazirim(p_couple_id uuid, p_gemiler jsonb)
+returns public.battleship_games
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.battleship_games;
+  v_hazir_sayisi int;
+begin
+  if not public.is_couple_member(p_couple_id) then
+    raise exception 'NOT_COUPLE_MEMBER';
+  end if;
+
+  update battleship_games
+     set gemiler    = coalesce(gemiler, '{}'::jsonb) || jsonb_build_object(auth.uid()::text, p_gemiler),
+         hazir      = coalesce(hazir, '{}'::jsonb) || jsonb_build_object(auth.uid()::text, true),
+         updated_at = now()
+   where couple_id = p_couple_id
+   returning * into v_row;
+
+  select count(*) into v_hazir_sayisi
+    from jsonb_each(v_row.hazir) as h(key, value)
+   where value::boolean;
+
+  if v_hazir_sayisi >= 2 and v_row.sira is null and v_row.kazanan is null then
+    update battleship_games
+       set sira = (select user_id from couple_members where couple_id = p_couple_id order by random() limit 1)
+     where couple_id = p_couple_id
+     returning * into v_row;
+  end if;
+
+  return v_row;
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------
 -- 4d) EŞLEŞMEYİ KALDIR
 --     Frontend'den:  supabase.rpc('leave_couple')
 --     couple_members'daki İKİ satırı da siler (her iki taraf da ayrılmış olur,

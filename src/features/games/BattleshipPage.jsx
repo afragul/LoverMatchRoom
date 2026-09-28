@@ -60,7 +60,7 @@ function hesaplaHucreler(hedefIndex, uzunluk, yon) {
   return hucreler;
 }
 
-function GemiHologram({ hucreler, renk, interaktif, suruklemeAktif, onDragStart, onDragEnd }) {
+function GemiHologram({ hucreler, renk, interaktif, suruklemeAktif, onPointerDown }) {
   if (!hucreler || hucreler.length === 0) return null;
   const satirlar = hucreler.map((h) => Math.floor(h / BOYUT));
   const sutunlar = hucreler.map((h) => h % BOYUT);
@@ -69,10 +69,8 @@ function GemiHologram({ hucreler, renk, interaktif, suruklemeAktif, onDragStart,
   const yatayMi = rMin === rMax;
   return (
     <div
-      draggable={!!interaktif}
-      onDragStart={interaktif ? onDragStart : undefined}
-      onDragEnd={interaktif ? onDragEnd : undefined}
-      className="flex items-center justify-center rounded-full"
+      onPointerDown={interaktif ? onPointerDown : undefined}
+      className="flex items-center justify-center rounded-full touch-none"
       style={{
         gridRow: `${rMin + 1} / ${rMax + 2}`,
         gridColumn: `${cMin + 1} / ${cMax + 2}`,
@@ -107,11 +105,15 @@ export default function BattleshipPage() {
   const [suruklemeAktif, setSuruklemeAktif] = useState(false);
   const [surukOnizleme, setSurukOnizleme] = useState(null);
   const suruklenenRef = useRef(null);
+  const panoRef = useRef(null);
+  const taslakRef = useRef(null);
 
   if (oyun && !oyun.hazir?.[user.id] && taslakOyunId !== oyun.created_at) {
     setTaslak(rastgeleTaslak());
     setTaslakOyunId(oyun.created_at);
   }
+
+  useEffect(() => { taslakRef.current = taslak; }, [taslak]);
 
   useEffect(() => {
     if (!coupleId) return;
@@ -184,32 +186,86 @@ export default function BattleshipPage() {
     });
   }
 
-  function paletSuruklemeBaslat(e, gemi) {
-    if (gemi.hucreler) return;
-    suruklenenRef.current = { gemiId: gemi.id, kaynak: 'palet', orijinalHucreler: null };
-    setSuruklemeAktif(true);
-    e.dataTransfer.effectAllowed = 'move';
+  // fare için de dokunmatik ekran için de çalışsın diye native HTML5
+  // drag-and-drop yerine Pointer Events + elle hit-testing kullanılıyor
+  // (native DnD dokunmatik ekranlarda hiç tetiklenmiyor).
+  function panodanHucreBul(clientX, clientY) {
+    const el = panoRef.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    if (clientX < r.left || clientX > r.right || clientY < r.top || clientY > r.bottom) return null;
+    const sutun = Math.min(BOYUT - 1, Math.floor(((clientX - r.left) / r.width) * BOYUT));
+    const satir = Math.min(BOYUT - 1, Math.floor(((clientY - r.top) / r.height) * BOYUT));
+    return satir * BOYUT + sutun;
   }
 
-  function gemiSuruklemeBaslat(e, gemi) {
+  function paletSuruklemeBaslat(e, gemi) {
+    if (gemi.hucreler) return;
+    e.preventDefault();
     suruklenenRef.current = {
       gemiId: gemi.id,
-      kaynak: 'tahta',
-      orijinalHucreler: gemi.hucreler,
+      kaynak: 'palet',
+      orijinalHucreler: null,
+      pointerId: e.pointerId,
       baslangicX: e.clientX,
       baslangicY: e.clientY,
     };
     setSuruklemeAktif(true);
-    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function gemiSuruklemeBaslat(e, gemi) {
+    e.preventDefault();
+    suruklenenRef.current = {
+      gemiId: gemi.id,
+      kaynak: 'tahta',
+      orijinalHucreler: gemi.hucreler,
+      pointerId: e.pointerId,
+      baslangicX: e.clientX,
+      baslangicY: e.clientY,
+    };
+    setSuruklemeAktif(true);
     setTaslak((t) => t.map((g) => (g.id === gemi.id ? { ...g, hucreler: null } : g)));
+  }
+
+  // Sürüklenen gemi (tahtadan başladıysa) render'dan kalktığı için hareket/bitiş
+  // dinleyicileri `window`a bağlanıyor — pointer capture'ı DOM'dan kaldırılan bir
+  // elemente bağlamak güvenilir değil, elemanla birlikte sessizce kopuyor.
+  function suruklemeHareket(e) {
+    const s = suruklenenRef.current;
+    const t = taslakRef.current;
+    if (!s || e.pointerId !== s.pointerId || !t) return;
+    e.preventDefault();
+    const gemi = t.find((g) => g.id === s.gemiId);
+    if (!gemi) return;
+    const index = panodanHucreBul(e.clientX, e.clientY);
+    if (index == null) { setSurukOnizleme(null); return; }
+    const kullanilacakYon = s.kaynak === 'tahta' ? gemiYonu(s.orijinalHucreler) : 'yatay';
+    setSurukOnizleme({ hedefIndex: index, uzunluk: gemi.uzunluk, yon: kullanilacakYon });
   }
 
   function suruklemeBitti(e) {
     const s = suruklenenRef.current;
-    if (s) {
-      if (s.kaynak === 'tahta') {
-        const dx = e.clientX - (s.baslangicX ?? e.clientX);
-        const dy = e.clientY - (s.baslangicY ?? e.clientY);
+    if (s && e.pointerId === s.pointerId) {
+      const t = taslakRef.current;
+      const gemi = t?.find((g) => g.id === s.gemiId);
+      const index = panodanHucreBul(e.clientX, e.clientY);
+
+      if (gemi && index != null) {
+        const kullanilacakYon = s.kaynak === 'tahta' ? gemiYonu(s.orijinalHucreler) : 'yatay';
+        const yeniHucreler = hesaplaHucreler(index, gemi.uzunluk, kullanilacakYon);
+        setTaslak((t) => {
+          const dolu = new Set(t.filter((g) => g.id !== s.gemiId && g.hucreler).flatMap((g) => g.hucreler));
+          const gecerliMi = yeniHucreler && yeniHucreler.every((h) => !dolu.has(h));
+          return t.map((g) => {
+            if (g.id !== s.gemiId) return g;
+            if (gecerliMi) return { ...g, hucreler: yeniHucreler };
+            return { ...g, hucreler: s.kaynak === 'tahta' ? s.orijinalHucreler : null };
+          });
+        });
+      } else if (s.kaynak === 'tahta') {
+        // pano dışına bırakıldı: küçük hareketse (tıklama) gemiyi döndür, değilse eski yerine geri koy
+        const dx = e.clientX - s.baslangicX;
+        const dy = e.clientY - s.baslangicY;
         const tiklamaMi = Math.hypot(dx, dy) < 5;
 
         if (tiklamaMi) {
@@ -225,64 +281,41 @@ export default function BattleshipPage() {
           setTaslak((t) => t.map((g) => (g.id === s.gemiId ? { ...g, hucreler: s.orijinalHucreler } : g)));
         }
       }
+
       suruklenenRef.current = null;
     }
     setSuruklemeAktif(false);
     setSurukOnizleme(null);
   }
 
-  function hucreUzerindeSuruklen(e, index) {
-    e.preventDefault();
-    const s = suruklenenRef.current;
-    if (!s || !taslak) return;
-    const gemi = taslak.find((g) => g.id === s.gemiId);
-    if (!gemi) return;
-    const kullanilacakYon = s.kaynak === 'tahta' ? gemiYonu(s.orijinalHucreler) : 'yatay';
-    setSurukOnizleme({ hedefIndex: index, uzunluk: gemi.uzunluk, yon: kullanilacakYon });
-  }
-
-  function hucreyeBirak(e, index) {
-    e.preventDefault();
-    const s = suruklenenRef.current;
-    if (!s) return;
-    const gemi = taslak.find((g) => g.id === s.gemiId);
-    if (!gemi) return;
-    const kullanilacakYon = s.kaynak === 'tahta' ? gemiYonu(s.orijinalHucreler) : 'yatay';
-    const yeniHucreler = hesaplaHucreler(index, gemi.uzunluk, kullanilacakYon);
-
-    setTaslak((t) => {
-      const dolu = new Set(t.filter((g) => g.id !== s.gemiId && g.hucreler).flatMap((g) => g.hucreler));
-      const gecerliMi = yeniHucreler && yeniHucreler.every((h) => !dolu.has(h));
-      return t.map((g) => {
-        if (g.id !== s.gemiId) return g;
-        if (gecerliMi) return { ...g, hucreler: yeniHucreler };
-        return { ...g, hucreler: s.kaynak === 'tahta' ? s.orijinalHucreler : null };
-      });
-    });
-
-    suruklenenRef.current = null;
-    setSuruklemeAktif(false);
-    setSurukOnizleme(null);
-  }
+  // sürüklenen gemi tahtadan kalkınca DOM'dan kaybolabildiği için (pointer capture
+  // o elemente bağlıysa kopar), hareket/bırakma window üzerinden takip ediliyor.
+  useEffect(() => {
+    if (!suruklemeAktif) return;
+    const hareket = (e) => suruklemeHareket(e);
+    const bitti = (e) => suruklemeBitti(e);
+    window.addEventListener('pointermove', hareket);
+    window.addEventListener('pointerup', bitti);
+    window.addEventListener('pointercancel', bitti);
+    return () => {
+      window.removeEventListener('pointermove', hareket);
+      window.removeEventListener('pointerup', bitti);
+      window.removeEventListener('pointercancel', bitti);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suruklemeAktif]);
 
   async function hazirim() {
     if (!oyun || !taslak || !taslak.every((g) => g.hucreler)) return;
     const gemiGruplari = taslak.map((g) => g.hucreler);
-    const partnerHazirMi = !!oyun.hazir?.[partner?.id];
 
-    const guncel = {
-      gemiler: { ...oyun.gemiler, [user.id]: gemiGruplari },
-      hazir: { ...oyun.hazir, [user.id]: true },
-      ...(partnerHazirMi ? { sira: Math.random() < 0.5 ? user.id : partner.id } : {}),
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .from('battleship_games')
-      .update(guncel)
-      .eq('couple_id', coupleId)
-      .select()
-      .single();
+    // düz update yerine atomik RPC: iki oyuncu da aynı anda hazır olursa
+    // birbirinin henüz görmediği hazır durumunu ezip sırayı atamadan
+    // kilitlememesi için (Kelime Düellosu'ndaki submit_duello_words ile aynı desen)
+    const { data, error } = await supabase.rpc('battleship_hazirim', {
+      p_couple_id: coupleId,
+      p_gemiler: gemiGruplari,
+    });
 
     if (error) { setHata('Kaydedilemedi.'); return; }
     setOyun(data);
@@ -383,14 +416,13 @@ export default function BattleshipPage() {
             {taslak.map((g) => (
               <button
                 key={g.id}
-                draggable={!g.hucreler}
-                onDragStart={(e) => paletSuruklemeBaslat(e, g)}
-                onDragEnd={suruklemeBitti}
+                onPointerDown={(e) => paletSuruklemeBaslat(e, g)}
                 disabled={!!g.hucreler}
                 style={{
                   background: g.hucreler ? 'var(--color-surface-container-high)' : 'var(--color-surface-container)',
                   color: g.hucreler ? 'var(--color-text-faint)' : 'var(--color-on-surface)',
                   cursor: g.hucreler ? 'default' : 'grab',
+                  touchAction: 'none',
                 }}
                 className="px-3 py-2 rounded-lg text-label-tab font-bold flex items-center gap-1"
               >
@@ -401,17 +433,12 @@ export default function BattleshipPage() {
           </div>
 
           <div
-            className="mx-auto grid w-full max-w-[320px] aspect-square gap-[2px] p-1.5 rounded-xl shadow-sm"
+            ref={panoRef}
+            className="mx-auto grid w-full max-w-[320px] aspect-square gap-[2px] p-1.5 rounded-xl shadow-sm touch-none"
             style={{ background: 'var(--color-surface-container-high)', gridTemplateColumns: IZGARA_SABLON, gridTemplateRows: IZGARA_SABLON }}
           >
             {Array.from({ length: BOYUT * BOYUT }).map((_, i) => (
-              <button
-                key={i}
-                onDragOver={(e) => hucreUzerindeSuruklen(e, i)}
-                onDrop={(e) => hucreyeBirak(e, i)}
-                className="rounded-sm"
-                style={{ background: 'rgba(11,99,206,0.08)' }}
-              />
+              <div key={i} className="rounded-sm" style={{ background: 'rgba(11,99,206,0.08)' }} />
             ))}
 
             {taslak.filter((g) => g.hucreler).map((g) => (
@@ -421,8 +448,7 @@ export default function BattleshipPage() {
                 renk={BENIM_GEMI_HEX}
                 interaktif
                 suruklemeAktif={suruklemeAktif}
-                onDragStart={(e) => gemiSuruklemeBaslat(e, g)}
-                onDragEnd={suruklemeBitti}
+                onPointerDown={(e) => gemiSuruklemeBaslat(e, g)}
               />
             ))}
 
