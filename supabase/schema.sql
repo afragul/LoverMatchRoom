@@ -31,6 +31,7 @@ create table public.couples (
   id         uuid primary key default gen_random_uuid(),
   name       text,
   started_at date,
+  sarki_url  text,  -- ortak şarkı: Spotify veya YouTube linki
   created_at timestamptz not null default now()
 );
 

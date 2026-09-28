@@ -12,6 +12,7 @@ export function CoupleProvider({ children }) {
   const [coupleId, setCoupleId] = useState(null);
   const [uyeler, setUyeler]     = useState([]);   // [{ id, display_name }]
   const [odaIsmi, setOdaIsmi]   = useState(null); // couples.name
+  const [sarkiUrl, setSarkiUrl] = useState(null); // couples.sarki_url — ortak şarkı (YouTube/Spotify linki)
   const [baslangic, setBaslangic] = useState(null); // ilişki başlangıcı (yoksa oda kurulum tarihi)
   const [baslangicAyarliMi, setBaslangicAyarliMi] = useState(false); // gerçekten kullanıcı mı girdi
   const [partnerAktif, setPartnerAktif] = useState(false);
@@ -24,7 +25,7 @@ export function CoupleProvider({ children }) {
   /* ---------------- veriyi çek ---------------- */
   const yenile = useCallback(async () => {
     if (!user) {
-      setCoupleId(null); setUyeler([]); setOdaIsmi(null);
+      setCoupleId(null); setUyeler([]); setOdaIsmi(null); setSarkiUrl(null);
       setBaslangic(null); setLoading(false);
       return;
     }
@@ -41,18 +42,19 @@ export function CoupleProvider({ children }) {
     setCoupleId(cid);
 
     if (!cid) {
-      setUyeler([]); setOdaIsmi(null); setBaslangic(null);
+      setUyeler([]); setOdaIsmi(null); setSarkiUrl(null); setBaslangic(null);
       setLoading(false);
       return;
     }
 
     const { data: oda } = await supabase
       .from('couples')
-      .select('name, started_at, created_at')
+      .select('name, started_at, created_at, sarki_url')
       .eq('id', cid)
       .maybeSingle();
 
     setOdaIsmi(oda?.name ?? null);
+    setSarkiUrl(oda?.sarki_url ?? null);
     setBaslangic(oda?.started_at ?? oda?.created_at ?? null);
     setBaslangicAyarliMi(!!oda?.started_at);
 
@@ -88,6 +90,7 @@ export function CoupleProvider({ children }) {
         { event: 'UPDATE', schema: 'public', table: 'couples', filter: `id=eq.${coupleId}` },
         ({ new: yeni }) => {
           setOdaIsmi(yeni.name ?? null);
+          setSarkiUrl(yeni.sarki_url ?? null);
           setBaslangic(yeni.started_at ?? yeni.created_at ?? null);
           setBaslangicAyarliMi(!!yeni.started_at);
         })
@@ -208,6 +211,14 @@ export function CoupleProvider({ children }) {
     return null;
   }
 
+  async function sarkiKaydet(url) {
+    const temiz = (url ?? '').trim();
+    const sonuc = await coupleGuncelle({ sarki_url: temiz || null });
+    if (sonuc instanceof Error) return sonuc;
+    setSarkiUrl(sonuc.sarki_url ?? null);
+    return null;
+  }
+
   /* ---------------- türetilmiş değerler ---------------- */
   const isimler = uyeler.map((u) => u.display_name || 'İsimsiz');
   const odaAdi  = odaIsmi || isimler.join(' & ') || 'Odanız';
@@ -223,7 +234,7 @@ export function CoupleProvider({ children }) {
 
   const value = {
     coupleId, uyeler, isimler, ben, partner,
-    odaAdi, odaIsmi, odaIsmiKaydet,
+    odaAdi, odaIsmi, odaIsmiKaydet, sarkiUrl, sarkiKaydet,
     baslangic, baslangicAyarliMi, baslangicKaydet, gunSayisi,
     partnerAktif, partnerSayfa, sayfaBildir, loading, yenile,
     okunmamisMesajVar,
