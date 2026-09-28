@@ -6,6 +6,34 @@ import { useAuth } from './AuthContext';
 
 const CoupleContext = createContext(null);
 
+// Sekme arka plandan dönünce (ör. Safari'nin belleği boşaltıp sayfayı sessizce
+// yenilemesi) her seferinde boş "Yükleniyor…" ekranı görünmesin diye son bilinen
+// oda verisi sessionStorage'da tutulur: geri gelince önce bu anında gösterilir,
+// gerçek veri arka planda sessizce tazelenir.
+function onbellekAnahtari(uid) {
+  return `ikiz_oda_onbellek_${uid}`;
+}
+
+function onbellekOku(uid) {
+  if (!uid) return null;
+  try {
+    const ham = sessionStorage.getItem(onbellekAnahtari(uid));
+    return ham ? JSON.parse(ham) : null;
+  } catch {
+    return null;
+  }
+}
+
+function onbellekYaz(uid, veri) {
+  if (!uid) return;
+  try { sessionStorage.setItem(onbellekAnahtari(uid), JSON.stringify(veri)); } catch { /* sessionStorage kapalıysa yoksay */ }
+}
+
+function onbellekTemizle(uid) {
+  if (!uid) return;
+  try { sessionStorage.removeItem(onbellekAnahtari(uid)); } catch { /* yoksay */ }
+}
+
 export function CoupleProvider({ children }) {
   const { user } = useAuth();
 
@@ -30,7 +58,20 @@ export function CoupleProvider({ children }) {
       return;
     }
 
-    setLoading(true);
+    // önbellekte son bilinen durum varsa hemen onu göster (boş ekran yok),
+    // yoksa (ilk yükleme) normal şekilde bekletici göster
+    const onbellek = onbellekOku(user.id);
+    if (onbellek) {
+      setCoupleId(onbellek.coupleId);
+      setUyeler(onbellek.uyeler);
+      setOdaIsmi(onbellek.odaIsmi);
+      setSarkiUrl(onbellek.sarkiUrl);
+      setBaslangic(onbellek.baslangic);
+      setBaslangicAyarliMi(onbellek.baslangicAyarliMi);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
     const { data: uyelik } = await supabase
       .from('couple_members')
@@ -44,25 +85,34 @@ export function CoupleProvider({ children }) {
     if (!cid) {
       setUyeler([]); setOdaIsmi(null); setSarkiUrl(null); setBaslangic(null);
       setLoading(false);
+      onbellekTemizle(user.id);
       return;
     }
 
-    const { data: oda } = await supabase
-      .from('couples')
-      .select('name, started_at, created_at, sarki_url')
-      .eq('id', cid)
-      .maybeSingle();
+    // birbirine bağımlı olmayan iki istek — sırayla değil paralel çekilince
+    // (özellikle sekme arka plandan dönünce) yüklenme süresi belirgin kısalıyor
+    const [{ data: oda }, { data: satirlar }] = await Promise.all([
+      supabase
+        .from('couples')
+        .select('name, started_at, created_at, sarki_url')
+        .eq('id', cid)
+        .maybeSingle(),
+      supabase
+        .from('couple_members')
+        .select('user_id, joined_at')
+        .eq('couple_id', cid)
+        .order('joined_at', { ascending: true }),
+    ]);
 
-    setOdaIsmi(oda?.name ?? null);
-    setSarkiUrl(oda?.sarki_url ?? null);
-    setBaslangic(oda?.started_at ?? oda?.created_at ?? null);
-    setBaslangicAyarliMi(!!oda?.started_at);
+    const yeniOdaIsmi = oda?.name ?? null;
+    const yeniSarkiUrl = oda?.sarki_url ?? null;
+    const yeniBaslangic = oda?.started_at ?? oda?.created_at ?? null;
+    const yeniBaslangicAyarliMi = !!oda?.started_at;
 
-    const { data: satirlar } = await supabase
-      .from('couple_members')
-      .select('user_id, joined_at')
-      .eq('couple_id', cid)
-      .order('joined_at', { ascending: true });
+    setOdaIsmi(yeniOdaIsmi);
+    setSarkiUrl(yeniSarkiUrl);
+    setBaslangic(yeniBaslangic);
+    setBaslangicAyarliMi(yeniBaslangicAyarliMi);
 
     const idler = (satirlar ?? []).map((s) => s.user_id);
 
@@ -71,11 +121,19 @@ export function CoupleProvider({ children }) {
       .select('id, display_name, avatar_url')
       .in('id', idler);
 
-    setUyeler(
-      idler.map((id) => (profiller ?? []).find((p) => p.id === id)).filter(Boolean)
-    );
+    const yeniUyeler = idler.map((id) => (profiller ?? []).find((p) => p.id === id)).filter(Boolean);
+    setUyeler(yeniUyeler);
 
     setLoading(false);
+
+    onbellekYaz(user.id, {
+      coupleId: cid,
+      uyeler: yeniUyeler,
+      odaIsmi: yeniOdaIsmi,
+      sarkiUrl: yeniSarkiUrl,
+      baslangic: yeniBaslangic,
+      baslangicAyarliMi: yeniBaslangicAyarliMi,
+    });
   }, [user]);
 
   useEffect(() => { yenile(); }, [yenile]);
