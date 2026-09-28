@@ -108,6 +108,30 @@ export default function ProfilPage() {
     yenile();
   }
 
+  async function avatarKaldir() {
+    if (!avatarUrl) return;
+    if (!window.confirm('Profil fotoğrafını kaldırmak istediğine emin misin?')) return;
+
+    setAvatarYukleniyor(true);
+    setAvatarHata(null);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ avatar_url: null })
+      .eq('id', user.id);
+
+    setAvatarYukleniyor(false);
+
+    if (error) { setAvatarHata('Fotoğraf kaldırılamadı.'); return; }
+
+    // storage'daki dosyayı da sil (best-effort, hata olsa da profil güncellemesi geçerli)
+    const yol = avatarUrl.split('/avatars/')[1];
+    if (yol) await supabase.storage.from('avatars').remove([yol]);
+
+    setAvatarUrl(null);
+    yenile();
+  }
+
   async function sifreKaydet() {
     setSifreHata(null);
     setSifreBasarili(false);
@@ -194,6 +218,15 @@ export default function ProfilPage() {
               </span>
               <input type="file" accept="image/*" className="hidden" onChange={avatarSec} disabled={avatarYukleniyor} />
             </label>
+            {avatarUrl && (
+              <button
+                onClick={avatarKaldir}
+                disabled={avatarYukleniyor}
+                className="block mx-auto mt-space-sm text-primary text-body-sm font-semibold disabled:opacity-50"
+              >
+                Fotoğrafı kaldır
+              </button>
+            )}
             {avatarHata && <p className="text-primary text-body-sm font-semibold mt-space-sm">{avatarHata}</p>}
             <p className="text-body-sm text-text-muted mt-space-sm">{user.email}</p>
           </section>

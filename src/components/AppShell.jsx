@@ -34,12 +34,12 @@ export default function AppShell({ children }) {
 
           <div className="flex items-center gap-space-sm overflow-x-auto no-scrollbar py-space-xs">
             {partner && (
-              <div className="flex items-center gap-1.5 flex-shrink-0">
+              <Link to="/profil/partner" className="flex items-center gap-1.5 flex-shrink-0">
                 <Avatar isim={partner.display_name} boyut={28} aktif={partnerAktif} fotoUrl={partner.avatar_url} />
                 <span className="text-label-eyebrow text-on-surface-variant whitespace-nowrap">
                   {partner.display_name || 'Partnerin'} {partnerAktif ? 'çevrimiçi' : 'çevrimdışı'}
                 </span>
-              </div>
+              </Link>
             )}
             {gunSayisi !== null && (
               <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-tertiary-fixed text-brown-earth flex-shrink-0">

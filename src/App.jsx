@@ -22,6 +22,7 @@ import BattleshipPage from './features/games/BattleshipPage';
 import RoomPage from './features/room/RoomPage';
 import AnilarPage from './features/anilar/AnilarPage';
 import ProfilPage from './features/profil/ProfilPage';
+import PartnerProfilPage from './features/profil/PartnerProfilPage';
 
 function Yukleniyor() {
   return (
@@ -80,6 +81,7 @@ export default function App() {
             <Route path="/anilar"  element={<AnilarPage />} />
             <Route path="/oda"     element={<RoomPage />} />
             <Route path="/profil"  element={<ProfilPage />} />
+            <Route path="/profil/partner" element={<PartnerProfilPage />} />
             <Route path="*"        element={<Navigate to="/" replace />} />
           </Routes>
         </AppShell>

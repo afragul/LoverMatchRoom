@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCouple } from '../../context/CoupleContext';
+import { Avatar } from '../../components/Bond';
 
 const RENKLER = {
   pink: { bg: '#ffebf0', text: 'var(--color-primary)' },
@@ -40,7 +41,11 @@ export default function NotesPage() {
   const [gonderiliyor, setGonderiliyor] = useState(false);
 
   const isimler = {};
-  uyeler.forEach((u) => { isimler[u.id] = u.display_name || 'İsimsiz'; });
+  const fotolar = {};
+  uyeler.forEach((u) => {
+    isimler[u.id] = u.display_name || 'İsimsiz';
+    fotolar[u.id] = u.avatar_url || null;
+  });
 
   useEffect(() => {
     if (!coupleId) return;
@@ -194,9 +199,11 @@ export default function NotesPage() {
 
                 <div className="flex items-center justify-between mb-space-sm pt-1">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center text-body-sm font-bold flex-shrink-0">
-                      {(benim ? 'Sen' : isimler[n.author_id] || 'P')[0]}
-                    </div>
+                    <Avatar
+                      isim={benim ? 'Sen' : isimler[n.author_id] || 'P'}
+                      fotoUrl={fotolar[n.author_id]}
+                      boyut={32}
+                    />
                     <div>
                       <span className="text-body-sm font-bold text-on-surface block leading-tight">
                         {benim ? 'Sen' : isimler[n.author_id] || 'Partner'}
