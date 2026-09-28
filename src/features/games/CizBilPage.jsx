@@ -4,22 +4,22 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useCouple } from '../../context/CoupleContext';
 
-const KELIME_BANKASI = [
-  'KEDİ', 'KÖPEK', 'GÜNEŞ', 'EV', 'ARABA', 'AĞAÇ', 'BALIK', 'KALP', 'ÇİÇEK', 'BULUT',
-  'YILDIZ', 'KİTAP', 'SAAT', 'ŞEMSİYE', 'DONDURMA', 'PİZZA', 'KAHVE', 'BİSİKLET',
-  'UÇAK', 'GEMİ', 'KELEBEK', 'BALON', 'ANAHTAR', 'GÖZLÜK', 'AYAKKABI', 'ŞAPKA',
-  'GİTAR', 'TOP', 'DENİZ', 'DAĞ', 'YILAN', 'FİL', 'ARI', 'ÖRÜMCEK', 'MERDİVEN',
-];
-
 const RENKLER = ['#23181A', '#D24558', '#61A07D', '#7FA8D9', '#FAC977'];
 const KALINLIK = 5;
+const SILGI_KALINLIK = 22;
 const TUVAL_ORAN = 0.7;
+// aynı kelimenin art arda gelmemesi için hafızada tutulan son tur sayısı
+const HATIRLANAN_KELIME_SAYISI = 15;
 
-function rastgele3Kelime() {
-  const havuz = [...KELIME_BANKASI];
+// son turlarda çıkan kelimeleri hariç tutarak rastgele 3 seçenek üretir;
+// havuz tükenirse (çok küçük kelime bankası) tekrara izin verir.
+function rastgele3Kelime(havuz, haricKelimeler = []) {
+  const haric = new Set(haricKelimeler);
+  const aday = havuz.filter((k) => !haric.has(k));
+  const kopya = [...(aday.length >= 3 ? aday : havuz)];
   const secilen = [];
-  for (let i = 0; i < 3 && havuz.length; i++) {
-    secilen.push(havuz.splice(Math.floor(Math.random() * havuz.length), 1)[0]);
+  for (let i = 0; i < 3 && kopya.length; i++) {
+    secilen.push(kopya.splice(Math.floor(Math.random() * kopya.length), 1)[0]);
   }
   return secilen;
 }
@@ -50,8 +50,10 @@ export default function CizBilPage() {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [hata, setHata]           = useState(null);
   const [secenekler, setSecenekler] = useState(null);
+  const [kelimeHavuzu, setKelimeHavuzu] = useState([]);
   const [kelimemGizli, setKelimemGizli] = useState(null);
   const [renk, setRenk]           = useState(RENKLER[0]);
+  const [arac, setArac]           = useState('kalem'); // 'kalem' | 'silgi'
   const [tahminler, setTahminler] = useState([]);
   const [girdi, setGirdi]         = useState('');
   const [sayac, setSayac]         = useState(0);
@@ -70,12 +72,14 @@ export default function CizBilPage() {
   function cizgiCiz(ctx, cizgi, g, y) {
     const n = cizgi?.noktalar;
     if (!n || n.length < 2) return;
+    ctx.globalCompositeOperation = cizgi.silgi ? 'destination-out' : 'source-over';
     ctx.strokeStyle = cizgi.renk;
     ctx.lineWidth = cizgi.kalinlik;
     ctx.beginPath();
     ctx.moveTo(n[0].x * g, n[0].y * y);
     for (const p of n.slice(1)) ctx.lineTo(p.x * g, p.y * y);
     ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   const ciz = useCallback(() => {
@@ -141,6 +145,18 @@ export default function CizBilPage() {
 
     return () => { iptal = true; };
   }, [coupleId]);
+
+  useEffect(() => {
+    let iptal = false;
+    supabase
+      .from('cizbil_kelimeler')
+      .select('kelime')
+      .then(({ data, error }) => {
+        if (iptal || error) return;
+        setKelimeHavuzu((data ?? []).map((s) => s.kelime));
+      });
+    return () => { iptal = true; };
+  }, []);
 
   /* ================= realtime ================= */
 
@@ -223,11 +239,12 @@ export default function CizBilPage() {
       oyun && oyun.durum === 'kelime_bekleniyor' &&
       oyun.cizen_id === user.id &&
       secenekler === null &&
-      kelimemGizliRef.current === null
+      kelimemGizliRef.current === null &&
+      kelimeHavuzu.length > 0
     ) {
-      setSecenekler(rastgele3Kelime());
+      setSecenekler(rastgele3Kelime(kelimeHavuzu, oyun.son_kelimeler ?? []));
     }
-  }, [oyun, user.id, secenekler]);
+  }, [oyun, user.id, secenekler, kelimeHavuzu]);
 
   function yayinla(event, payload) {
     kanalRef.current?.send({ type: 'broadcast', event, payload: { kim: user.id, ...payload } });
@@ -280,9 +297,11 @@ export default function CizBilPage() {
     bulunduIsaretRef.current = false;
     setSecenekler(null);
 
+    const sonKelimeler = [...(oyun?.son_kelimeler ?? []), kelime].slice(-HATIRLANAN_KELIME_SAYISI);
+
     const { data, error } = await supabase
       .from('cizbil_games')
-      .update({ durum: 'ciziliyor', updated_at: new Date().toISOString() })
+      .update({ durum: 'ciziliyor', son_kelimeler: sonKelimeler, updated_at: new Date().toISOString() })
       .eq('couple_id', coupleId)
       .select()
       .single();
@@ -317,7 +336,13 @@ export default function CizBilPage() {
   function basla(e) {
     if (!benimCizenOldugum || turBitti) return;
     e.preventDefault();
-    aktifRef.current = { renk, kalinlik: KALINLIK, noktalar: [konum(e)] };
+    const silgi = arac === 'silgi';
+    aktifRef.current = {
+      renk,
+      kalinlik: silgi ? SILGI_KALINLIK : KALINLIK,
+      silgi,
+      noktalar: [konum(e)],
+    };
   }
 
   function surukle(e) {
@@ -408,15 +433,19 @@ export default function CizBilPage() {
           <div className="bg-surface-card rounded-xl p-space-xl text-center shadow-sm">
             <h3 className="text-headline-sm text-on-surface">Hangi kelimeyi çizmek istersin?</h3>
             <div className="flex flex-col gap-space-sm mt-space-md">
-              {(secenekler ?? []).map((k) => (
-                <button
-                  key={k}
-                  onClick={() => kelimeSec(k)}
-                  className="w-full py-2.5 rounded-full bg-surface-soft text-primary text-label-button"
-                >
-                  {k}
-                </button>
-              ))}
+              {secenekler === null ? (
+                <p className="text-body-sm text-text-muted">Kelimeler yükleniyor…</p>
+              ) : (
+                secenekler.map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => kelimeSec(k)}
+                    className="w-full py-2.5 rounded-full bg-surface-soft text-primary text-label-button"
+                  >
+                    {k}
+                  </button>
+                ))
+              )}
             </div>
           </div>
         ) : (
@@ -456,12 +485,20 @@ export default function CizBilPage() {
                 {RENKLER.map((r) => (
                   <button
                     key={r}
-                    onClick={() => setRenk(r)}
+                    onClick={() => { setRenk(r); setArac('kalem'); }}
                     aria-label={`Renk ${r}`}
                     className="w-7 h-7 rounded-full"
-                    style={{ background: r, boxShadow: renk === r ? '0 0 0 2px var(--color-surface-card), 0 0 0 4px var(--color-primary)' : 'none' }}
+                    style={{ background: r, boxShadow: arac === 'kalem' && renk === r ? '0 0 0 2px var(--color-surface-card), 0 0 0 4px var(--color-primary)' : 'none' }}
                   />
                 ))}
+                <button
+                  onClick={() => setArac('silgi')}
+                  aria-label="Silgi"
+                  className="w-7 h-7 rounded-full bg-surface-card shadow-sm flex items-center justify-center text-on-surface-variant"
+                  style={{ boxShadow: arac === 'silgi' ? '0 0 0 2px var(--color-surface-card), 0 0 0 4px var(--color-primary)' : undefined }}
+                >
+                  <span className="material-symbols-outlined text-[16px]">ink_eraser</span>
+                </button>
               </div>
               <button onClick={vazgec} className="px-space-md py-1.5 rounded-full bg-surface-card text-on-surface-variant text-label-tab shadow-sm">
                 Pes et

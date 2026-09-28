@@ -103,12 +103,22 @@ create table public.duello_games (
 -- (bulundu/vazgecildi) kadar NULL kalır, o an ifşa edilir. Çizim akışı ve
 -- tahminler kalıcı değil, sadece broadcast ile anlık gidiyor.
 create table public.cizbil_games (
-  couple_id  uuid primary key references public.couples(id) on delete cascade,
-  cizen_id   uuid not null references auth.users(id),
-  durum      text not null default 'ciziliyor',   -- 'kelime_bekleniyor' | 'ciziliyor' | 'bulundu' | 'vazgecildi'
-  kelime     text,
-  basladi    timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  couple_id     uuid primary key references public.couples(id) on delete cascade,
+  cizen_id      uuid not null references auth.users(id),
+  durum         text not null default 'ciziliyor',   -- 'kelime_bekleniyor' | 'ciziliyor' | 'bulundu' | 'vazgecildi'
+  kelime        text,
+  -- son turlarda çıkan kelimeler — yeni seçenek üretirken hariç tutulur,
+  -- art arda aynı kelimelerin gelmesini önler.
+  son_kelimeler text[] not null default '{}',
+  basladi       timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+-- ÇİZ VE TAHMİN ET kelime bankası — kodda değil burada tutulur, yeni kelime
+-- eklemek için deploy gerekmez, sadece bu tabloya satır eklemek yeterli.
+create table public.cizbil_kelimeler (
+  id     bigint generated always as identity primary key,
+  kelime text not null unique
 );
 
 -- BUNU BİLİR MİSİN: partnerin hakkında tahmin oyunu.
@@ -551,6 +561,7 @@ alter table public.strokes        enable row level security;
 alter table public.xox_games      enable row level security;
 alter table public.duello_games   enable row level security;
 alter table public.cizbil_games   enable row level security;
+alter table public.cizbil_kelimeler enable row level security;
 alter table public.bilirmisin_profil enable row level security;
 alter table public.bilirmisin_tur    enable row level security;
 alter table public.oyun_sonuclari    enable row level security;
@@ -671,6 +682,12 @@ create policy "insert couple cizbil_games"
 create policy "update couple cizbil_games"
   on public.cizbil_games for update
   using (public.is_couple_member(couple_id));
+
+-- CIZBIL_KELIMELER: couple'a özel değil, paylaşılan oyun içeriği —
+-- sadece giriş yapmış olmak yeterli.
+create policy "read cizbil_kelimeler"
+  on public.cizbil_kelimeler for select
+  using (auth.uid() is not null);
 
 -- BILIRMISIN_PROFIL: herkes couple'ının cevaplarını okuyabilir,
 -- ama sadece kendi cevabını yazabilir (kimlik sabit, tur devretmiyor).
@@ -868,3 +885,26 @@ create policy "update own avatar"
 create policy "delete own avatar"
   on storage.objects for delete
   using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+
+-- ---------------------------------------------------------------------
+-- 8) ÇİZ VE TAHMİN ET — kelime bankası tohumu
+--    Yeni kelime eklemek için deploy gerekmez: Table Editor'dan bu tabloya
+--    satır eklemek yeterli.
+-- ---------------------------------------------------------------------
+
+insert into public.cizbil_kelimeler (kelime) values
+  ('KEDİ'), ('KÖPEK'), ('GÜNEŞ'), ('EV'), ('ARABA'), ('AĞAÇ'), ('BALIK'), ('KALP'),
+  ('ÇİÇEK'), ('BULUT'), ('YILDIZ'), ('KİTAP'), ('SAAT'), ('ŞEMSİYE'), ('DONDURMA'),
+  ('PİZZA'), ('KAHVE'), ('BİSİKLET'), ('UÇAK'), ('GEMİ'), ('KELEBEK'), ('BALON'),
+  ('ANAHTAR'), ('GÖZLÜK'), ('AYAKKABI'), ('ŞAPKA'), ('GİTAR'), ('TOP'), ('DENİZ'),
+  ('DAĞ'), ('YILAN'), ('FİL'), ('ARI'), ('ÖRÜMCEK'), ('MERDİVEN'),
+  ('SÜRPRİZ'), ('GÜVEN'), ('PİKNİK'), ('BALAYI'), ('NİŞAN'), ('GÖKKUŞAĞI'),
+  ('UÇURTMA'), ('RÜZGARGÜLÜ'), ('DOKTOR'), ('AŞÇI'), ('POLİS'), ('ÖĞRETMEN'),
+  ('PİLOT'), ('RESSAM'), ('ASTRONOT'), ('DEDEKTİF'), ('KORSAN'), ('ŞÖVALYE'),
+  ('EJDERHA'), ('ROBOT'), ('UZAYLI'), ('HAYALET'), ('VAMPİR'), ('PENGUEN'),
+  ('KANGURU'), ('ZÜRAFA'), ('TİMSAH'), ('AKREP'), ('SALYANGOZ'), ('VOLKAN'),
+  ('BUZDAĞI'), ('ÇÖL'), ('ŞELALE'), ('MAĞARA'), ('LABİRENT'), ('PUSULA'),
+  ('TELESKOP'), ('SATRANÇ'), ('DEĞİRMEN'), ('FENER'), ('MIKNATIS'), ('FIRIN'),
+  ('KUM SAATI')
+on conflict (kelime) do nothing;
