@@ -17,6 +17,7 @@ export function CoupleProvider({ children }) {
   const [partnerAktif, setPartnerAktif] = useState(false);
   const [partnerSayfa, setPartnerSayfa] = useState(null);
   const [loading, setLoading]   = useState(true);
+  const [okunmamisMesajVar, setOkunmamisMesajVar] = useState(false);
 
   const kanalRef = useRef(null);
 
@@ -152,7 +153,24 @@ export function CoupleProvider({ children }) {
 
   const sayfaBildir = useCallback((sayfa) => {
     kanalRef.current?.track({ girdi: new Date().toISOString(), sayfa });
+    if (sayfa === '/mesajlar') setOkunmamisMesajVar(false);
   }, []);
+
+  /* ---------------- yeni mesaj bildirimi (footer rozeti) ---------------- */
+  useEffect(() => {
+    if (!coupleId || !user) return;
+
+    const kanal = supabase
+      .channel(`mesaj-bildirim:${coupleId}`)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `couple_id=eq.${coupleId}` },
+        ({ new: yeni }) => {
+          if (yeni.sender_id !== user.id) setOkunmamisMesajVar(true);
+        })
+      .subscribe();
+
+    return () => supabase.removeChannel(kanal);
+  }, [coupleId, user]);
 
   /* ---------------- yazma işlemleri ----------------
      .select().maybeSingle() ile: RLS satırı sessizce filtrelerse
@@ -208,6 +226,7 @@ export function CoupleProvider({ children }) {
     odaAdi, odaIsmi, odaIsmiKaydet,
     baslangic, baslangicAyarliMi, baslangicKaydet, gunSayisi,
     partnerAktif, partnerSayfa, sayfaBildir, loading, yenile,
+    okunmamisMesajVar,
   };
 
   return <CoupleContext.Provider value={value}>{children}</CoupleContext.Provider>;

@@ -15,7 +15,7 @@ const SEKMELER = [
 
 export default function AppShell({ children }) {
   const { pathname } = useLocation();
-  const { partner, partnerAktif, sayfaBildir, gunSayisi } = useCouple();
+  const { partner, partnerAktif, sayfaBildir, gunSayisi, okunmamisMesajVar } = useCouple();
 
   useEffect(() => { sayfaBildir(pathname); }, [pathname, sayfaBildir]);
 
@@ -79,7 +79,12 @@ export default function AppShell({ children }) {
                   (isActive ? 'text-primary bg-surface-soft' : 'text-on-surface-variant hover:text-on-surface')
                 }
               >
-                <span className="material-symbols-outlined text-[24px]">{ikon}</span>
+                <span className="relative">
+                  <span className="material-symbols-outlined text-[24px]">{ikon}</span>
+                  {ikon === 'chat' && okunmamisMesajVar && (
+                    <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-primary ring-2 ring-surface-card" />
+                  )}
+                </span>
               </NavLink>
             ))}
           </div>
