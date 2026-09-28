@@ -19,6 +19,7 @@ import DotsBoxesPage from './features/games/DotsBoxesPage';
 import Connect4Page from './features/games/Connect4Page';
 import ReversiPage from './features/games/ReversiPage';
 import BattleshipPage from './features/games/BattleshipPage';
+import SiseCevirmecePage from './features/games/SiseCevirmecePage';
 import RoomPage from './features/room/RoomPage';
 import AnilarPage from './features/anilar/AnilarPage';
 import ProfilPage from './features/profil/ProfilPage';
@@ -78,6 +79,7 @@ export default function App() {
             <Route path="/oyunlar/connect4" element={<Connect4Page />} />
             <Route path="/oyunlar/reversi" element={<ReversiPage />} />
             <Route path="/oyunlar/amiralbatti" element={<BattleshipPage />} />
+            <Route path="/oyunlar/sisecevirmece" element={<SiseCevirmecePage />} />
             <Route path="/anilar"  element={<AnilarPage />} />
             <Route path="/oda"     element={<RoomPage />} />
             <Route path="/profil"  element={<ProfilPage />} />

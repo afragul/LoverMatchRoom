@@ -143,6 +143,27 @@ create table public.bilirmisin_tur (
   updated_at     timestamptz not null default now()
 );
 
+-- ŞİŞE ÇEVİRMECE: soru bankası couple'a özel değil, TÜM kullanıcılar arasında
+-- paylaşılır — biri kendi sorusunu eklerse herkes kullanabilir, deploy gerekmez.
+create table public.sise_sorulari (
+  id         bigint generated always as identity primary key,
+  metin      text not null unique,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now()
+);
+
+-- ŞİŞE ÇEVİRMECE: aktif tur, couple başına tek satır — soru + rastgele hedef.
+-- Hedef soruyu sesli/yüz yüze cevaplar, uygulama sadece soruyu ve kimin hedef
+-- olduğunu gösterir, cevap toplamaz. son_sorular: art arda aynı soruların
+-- gelmesini önlemek için bu couple'da yakın zamanda çıkan sorular.
+create table public.sise_tur (
+  couple_id   uuid primary key references public.couples(id) on delete cascade,
+  soru_metin  text not null,
+  hedef_id    uuid not null references auth.users(id),
+  son_sorular text[] not null default '{}',
+  updated_at  timestamptz not null default now()
+);
+
 -- OYUN SONUÇLARI: her biten XOX/Duello/CizBil turunun sonucu — istatistik için
 -- append-only log (BilirMisin'de kazanan kavramı olmadığı için burada yok)
 create table public.oyun_sonuclari (
@@ -609,6 +630,8 @@ alter table public.cizbil_games   enable row level security;
 alter table public.cizbil_kelimeler enable row level security;
 alter table public.bilirmisin_profil enable row level security;
 alter table public.bilirmisin_tur    enable row level security;
+alter table public.sise_sorulari     enable row level security;
+alter table public.sise_tur          enable row level security;
 alter table public.oyun_sonuclari    enable row level security;
 alter table public.anilar            enable row level security;
 alter table public.uno_games         enable row level security;
@@ -761,6 +784,29 @@ create policy "update couple bilirmisin_tur"
   on public.bilirmisin_tur for update
   using (public.is_couple_member(couple_id));
 
+-- SİSE_SORULARI: herkese açık, couple'a özel olmayan paylaşılan içerik —
+-- giriş yapmış herkes okuyabilir ve kendi sorusunu ekleyebilir.
+create policy "read sise_sorulari"
+  on public.sise_sorulari for select
+  using (auth.uid() is not null);
+
+create policy "insert sise_sorulari"
+  on public.sise_sorulari for insert
+  with check (auth.uid() is not null and created_by = auth.uid());
+
+-- SİSE_TUR: sadece kendi couple'ının turu
+create policy "read couple sise_tur"
+  on public.sise_tur for select
+  using (public.is_couple_member(couple_id));
+
+create policy "insert couple sise_tur"
+  on public.sise_tur for insert
+  with check (public.is_couple_member(couple_id));
+
+create policy "update couple sise_tur"
+  on public.sise_tur for update
+  using (public.is_couple_member(couple_id));
+
 -- UNO_GAMES: sadece kendi couple'ının oyunu
 create policy "read couple uno_games"
   on public.uno_games for select
@@ -871,6 +917,7 @@ alter publication supabase_realtime add table public.duello_games;
 alter publication supabase_realtime add table public.cizbil_games;
 alter publication supabase_realtime add table public.bilirmisin_profil;
 alter publication supabase_realtime add table public.bilirmisin_tur;
+alter publication supabase_realtime add table public.sise_tur;
 alter publication supabase_realtime add table public.oyun_sonuclari;
 alter publication supabase_realtime add table public.anilar;
 alter publication supabase_realtime add table public.couples;
@@ -953,3 +1000,62 @@ insert into public.cizbil_kelimeler (kelime) values
   ('TELESKOP'), ('SATRANÇ'), ('DEĞİRMEN'), ('FENER'), ('MIKNATIS'), ('FIRIN'),
   ('KUM SAATI')
 on conflict (kelime) do nothing;
+
+
+-- ---------------------------------------------------------------------
+-- 9) ŞİŞE ÇEVİRMECE — başlangıç soru bankası
+-- ---------------------------------------------------------------------
+
+insert into public.sise_sorulari (metin) values
+  ('En unutamadığın anımız hangisi?'),
+  ('İlk gördüğünde benim hakkımda ne düşünmüştün?'),
+  ('Beni en çok ne zaman kıskanırsın?'),
+  ('Birlikte gitmek istediğin ama hiç gidemediğimiz yer neresi?'),
+  ('Benimle ilgili en çok neyi seviyorsun?'),
+  ('Beraber yaşlanınca nasıl bir çift olacağımızı düşünüyorsun?'),
+  ('En büyük hayalin ne, bana hiç anlattın mı?'),
+  ('Bir günlüğüne benim yerime geçsen ilk ne yapardın?'),
+  ('Sana göre mükemmel bir randevu nasıl olurdu?'),
+  ('Beni ilk ne zaman sevdiğini fark ettin?'),
+  ('Hangi alışkanlığımı değiştirmemi isterdin?'),
+  ('En çok hangi konuda haklı çıktığımı itiraf edersin?'),
+  ('Kıskançlık krizine girdiğin bir anı anlat.'),
+  ('Bir süper gücün olsaydı ikimiz için ne yapardın?'),
+  ('Beraber en çok güldüğümüz an hangisiydi?'),
+  ('Aramızdaki en tatlı alışkanlığımız ne?'),
+  ('Benimle tanışmadan önce hayatın nasıldı?'),
+  ('Gelecekte birlikte yapmak istediğimiz bir şey söyle.'),
+  ('En sevdiğin fiziksel özelliğim ne?'),
+  ('Sana sürpriz yapsam en çok ne istersin?'),
+  ('Bir hayvan olsaydım hangi hayvan olurdum sence?'),
+  ('Beraber izlediğimiz en sevdiğin film/dizi hangisi?'),
+  ('Kavga ettiğimizde barışmayı kim daha çok ister?'),
+  ('Beni en çok ne zaman özlüyorsun?'),
+  ('Aşkını nasıl tarif edersin?'),
+  ('En garip alışkanlığım ne sence?'),
+  ('Sana göre ilişki nasıl olmalı?'),
+  ('Beraber bir şarkımız var mı, hangisi?'),
+  ('Bugüne kadar sana yaptığım en tatlı sürpriz neydi?'),
+  ('İlk öpüştüğümüz anı anlat.'),
+  ('En sevdiğin lakabım ne?'),
+  ('Sence 10 yıl sonra neredeyiz?'),
+  ('Bir kelimeyle beni tanımla.'),
+  ('En büyük korkularımdan biri ne biliyor musun?'),
+  ('Beraber yapmayı en çok sevdiğimiz şey ne?'),
+  ('Uyurken bir huyum var mı, ne?'),
+  ('Sana verdiğim en güzel hediye neydi?'),
+  ('Bir gün her şeyi unutsam beni nasıl hatırlatırdın?'),
+  ('Aramızdaki en komik anıyı anlat.'),
+  ('Sence beni en çok kim kıskanır?'),
+  ('Küçük bir sır paylaş, hiç kimseye söylemediğin.'),
+  ('En çok özlediğin an hangisiydi?'),
+  ('Bana söylediğin en tatlı söz neydi?'),
+  ('Bir aşk filminde olsaydık adı ne olurdu?'),
+  ('En sevdiğin ortak anımız hangi mevsimde geçti?'),
+  ('Beraber yolculuk yapsak nereye giderdik?'),
+  ('Sana göre en romantik jest nedir?'),
+  ('Beni ilk kez ne zaman "aşkım" diye çağırdın?'),
+  ('Uzun bir yol yolculuğunda ne konuşuruz sence?'),
+  ('Bir hediye alsam sürpriz mi olsun, yoksa söyleyeyim mi?'),
+  ('Benimle evlenmeyi/birlikte yaşlanmayı hiç hayal ettin mi?')
+on conflict (metin) do nothing;

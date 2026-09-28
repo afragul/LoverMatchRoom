@@ -14,6 +14,7 @@ const OYUNLAR = [
   { ad: 'Dört Taş', alt: 'Sırayla taş bırak, önce 4\'lü sıra yapan kazanır', ikon: 'view_column', ton: 'bg-mint-soft text-primary', yol: '/oyunlar/connect4' },
   { ad: 'Revers', alt: 'Rakip taşları çevirerek tahtayı ele geçir', ikon: 'radio_button_checked', ton: 'bg-secondary-fixed text-mint-vibrant', yol: '/oyunlar/reversi' },
   { ad: 'Amiral Battı', alt: 'Filonu diz, partnerinin sularına ateş et', ikon: 'sailing', ton: 'bg-tertiary-fixed text-mint-vibrant', yol: '/oyunlar/amiralbatti' },
+  { ad: 'Şişe Çevirmece', alt: 'Şişe döner, soru çıkar, hedef cevaplar', ikon: 'liquor', ton: 'bg-mint-soft text-brown-earth', yol: '/oyunlar/sisecevirmece' },
 ];
 
 export default function GamesPage() {
